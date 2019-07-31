@@ -15,16 +15,15 @@
 struct LED
 {
     // Current LED state
-    bool on;
+    bool on = false;
     // Arduino pin
     int pin;
     // Determines LED flashing speed
-    const int millis_between_flashes = 250;
+    int millis_between_flashes = 250;
 
-    // Object constructor
-    LED(int a)
+    // Object constructor with default values
+    LED(int a = 0)
     {
-        on = false;
         pin = a;
     }
 
@@ -51,7 +50,7 @@ struct LED
     {
         if (on)
             turn_off();
-        else 
+        else
             turn_on();
     }
 
@@ -59,7 +58,7 @@ struct LED
     void turn_on()
     {
         // Digital reads are faster than digital writes, so it's worth checking
-        if (!on) 
+        if (!on)
         {
             digitalWrite(pin, HIGH);
             on = true;
@@ -73,6 +72,81 @@ struct LED
         {
             digitalWrite(pin, LOW);
             on = false;
+        }
+    }
+};
+
+
+// Limit switch object to control headstock and tailstock limit switches
+struct LimitSwitch
+{
+    // Switches haven't been checked until the check method is run
+    bool checked = false;
+    // Arduino pin
+    int pin;
+    // LED indicator for this limit siwtch
+    LED led;
+
+    // Object constructor
+    LimitSwitch(LED a, int b)
+    {
+        pin = b;
+        led = a;
+    }
+
+    // Check if the switch is hit and return boolean
+    bool is_hit()
+    {
+        if (digitalRead(pin) == HIGH)
+            hit = true;
+        else
+            hit = false;
+        
+        return hit;
+    }
+
+    // Test if the limit switch works by flashing the LED and having the operator hold the limit. If the switch doesn't work, the program will get stuck in this loop
+    void check()
+    {
+        // Time when the operator hits the limit switch
+        long activate_time;
+        // Time when the operator releases the limit switch
+        long release_time;
+        // How long does the operator have to hold the limit to prove it's working?
+        int millis_hold_time = 750;
+
+        // Switch checking loop
+        while (!checked)
+        {
+            led.flash();
+            // Check if the switch is pressed
+            if (is_hit())
+            {
+                // Turn on the LED to signal that the limit is pressed
+                led.turn_on();
+                // Get current time when the switch is pressed
+                activate_time = millis();
+
+                // Wait for the switch to be released
+                while (true)
+                {
+                    // If they let go of the switch or it is intermittent
+                    if (!is_hit())
+                    {
+                        // Get current time when the switch is released
+                        release_time = millis();
+
+                        // If the switch was held for long enough to confirm it's working
+                        if (release_time - activate_time >= millis_hold_time)
+                        {
+                            led.turn_off();
+                            // Good to go
+                            checked = true;
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 };
@@ -121,6 +195,10 @@ LED tail_limit_led(output_tail_limit_led);
 LED head_moving_led(output_head_moving_led);
 LED tail_moving_led(output_tail_moving_led);
 
+// Create the limit switch objects with their pin assignments
+LimitSwitch head_limit_switch(head_limit_led, input_head_limit_switch);
+LimitSwitch tail_limit_switch(tail_limit_led, input_tail_limit_switch);
+
 
 // The setup() function runs once each time the micro-controller starts
 void setup()
@@ -136,95 +214,8 @@ void setup()
     servo.attach(output_servo);
 
     // Check that the limit switches are still connected correctly
-    check_limit_switches();
-}
-
-
-// Flash each limit LED until the lathe operator presses the limit switch for enough time to ensure they are connected correctly
-void check_limit_switches()
-{
-    // Time when the operator first presses the limit
-    long activate_time;
-    // Time when the operator releases the limit
-    long release_time;
-    // How long does the operator have to hold the limit to prove it's working (in milliseconds)?
-    int millis_hold_time = 750;
-
-    // Assume the limit is bad
-    bool head_limit_ok = false;
-
-    // Headstock limit checking loop
-    while (!head_limit_ok)
-    {
-        // Flash the LED
-        head_limit_led.flash();
-        // If the limit switch is pressed
-        if (is_at_head())
-        {
-            // Turn on the LED to signal the limit is pressed
-            head_limit_led.turn_on();
-            // Current time when the switch was pressed
-            activate_time = millis();
-
-            // Wait for the switch to be released
-            while (true)
-            {
-                // If they let go of the limit or it is intermittent
-                if (!is_at_head())
-                {
-                    // Current time when the switch is released
-                    release_time = millis();
-
-                    // If the switch was held down for long enough to confirm it's working
-                    if (release_time - activate_time >= millis_hold_time)
-                    {
-                        head_limit_led.turn_off();
-                        // End the check loop
-                        head_limit_ok = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    // Assume the limit is bad
-    bool tail_limit_ok = false;
-
-    // Tailstock limit checking loop
-    while (!tail_limit_ok)
-    {
-        // Flash the LED
-        tail_limit_led.flash();
-        // If the limit switch is pressed
-        if (is_at_tail())
-        {
-            // Turn on the LED to signal the limit is pressed
-            tail_limit_led.turn_on();
-            // Current time when the switch was pressed
-            activate_time = millis();
-
-            // Wait for the switch to be released
-            while (true)
-            {
-                // If they let go of the limit or it is intermittent
-                if (!is_at_tail())
-                {
-                    // Current time when the switch is released
-                    release_time = millis();
-
-                    // If the switch was held down for long enough to confirm it's working
-                    if (release_time - activate_time >= millis_hold_time)
-                    {
-                        tail_limit_led.turn_off();
-                        // End the check loop
-                        tail_limit_ok = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    head_limit_switch.check();
+    tail_limit_switch.check();
 }
 
 
@@ -247,28 +238,6 @@ void set_pin_modes()
     pinMode(output_tail_limit_led, OUTPUT);
     pinMode(output_head_moving_led, OUTPUT);
     pinMode(output_tail_moving_led, OUTPUT);
-}
-
-
-// Check if headstock limit switch has been reached
-bool is_at_head()
-{
-    if (digitalRead(input_head_limit_switch) == HIGH) {
-        return true;
-    }
-    else
-        return false;
-}
-
-
-// Check if tailstock limit switch has been reached
-bool is_at_tail()
-{
-    if (digitalRead(input_tail_limit_switch) == HIGH) {
-        return true;
-    }
-    else
-        return false;
 }
 
 
@@ -363,7 +332,7 @@ void update_direction()
     if (is_moving_to_head)
     {
         // If headstock limit switch is reached
-        if (is_at_head)
+        if (head_limit_switch.is_hit())
         {
             // Avoid crashing into the headstock
             stop_motor();
@@ -391,7 +360,7 @@ void update_direction()
     else if (is_moving_to_tail)
     {
         // If tailstock limit switch is reached
-        if (is_at_tail)
+        if (tail_limit_switch.is_hit())
         {
             // Avoid crashing into the tailstock
             stop_motor();
@@ -446,8 +415,8 @@ void debug_print()
     {
         Serial.print("Motor running: "); Serial.println(motor_running);
         Serial.print("Servo position: "); Serial.println(servo.read());
-        Serial.print("Headstock limit switch: "); Serial.println(is_at_head());
-        Serial.print("Tailtock limit switch: "); Serial.println(is_at_tail());
+        Serial.print("Headstock limit switch: "); Serial.println(head_limit_switch.is_hit());
+        Serial.print("Tailtock limit switch: "); Serial.println(tail_limit_switch.is_hit());
         Serial.print("Moving towards headstock: "); Serial.println(is_moving_to_head());
         Serial.print("Moving towards tailstock: "); Serial.println(is_moving_to_tail());
         Serial.print("\n\n");
