@@ -98,11 +98,9 @@ struct LimitSwitch
     bool is_hit()
     {
         if (digitalRead(pin) == HIGH)
-            hit = true;
+            return true;
         else
-            hit = false;
-        
-        return hit;
+            return false;
     }
 
     // Test if the limit switch works by flashing the LED and having the operator hold the limit. If the switch doesn't work, the program will get stuck in this loop
@@ -113,7 +111,7 @@ struct LimitSwitch
         // Time when the operator releases the limit switch
         long release_time;
         // How long does the operator have to hold the limit to prove it's working?
-        int millis_hold_time = 750;
+        int millis_hold_time = 1000;
 
         // Switch checking loop
         while (!checked)
@@ -142,6 +140,12 @@ struct LimitSwitch
                             led.turn_off();
                             // Good to go
                             checked = true;
+                            break;
+                        }
+                        // If they release the switch too quickly
+                        else
+                        {
+                            // Go back to looking for a switch press
                             break;
                         }
                     }
