@@ -18,8 +18,6 @@ struct LED
     bool on = false;
     // Arduino pin
     int pin;
-    // Determines LED flashing speed
-    int millis_between_flashes = 250;
 
     // Object constructor with default values
     LED(int a = 0)
@@ -27,9 +25,10 @@ struct LED
         pin = a;
     }
 
-    // Flash LED on and off at a constant rate
-    void flash()
+    // Flash LED on and off at a constant rate (default 250ms between)
+    void flash(int millis_between_flashes = 250)
     {
+
         // Last time the LED changed states
         static long last_flash_time = millis();
         // Time when this function is called
@@ -120,14 +119,15 @@ struct LimitSwitch
             // Check if the switch is pressed
             if (is_hit())
             {
-                // Turn on the LED to signal that the limit is pressed
-                led.turn_on();
                 // Get current time when the switch is pressed
                 activate_time = millis();
 
                 // Wait for the switch to be released
                 while (true)
                 {
+                    // Flash fast to signal that the limit is pressed
+                    led.flash(50);
+
                     // If they let go of the switch or it is intermittent
                     if (!is_hit())
                     {
