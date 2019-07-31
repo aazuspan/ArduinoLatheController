@@ -201,6 +201,16 @@ bool is_moving_to_tail()
 }
 
 
+// Check if the turbo switch is currrently pressed
+bool turbo_engaged()
+{
+    if (digitalRead(input_turbo_activate_switch == HIGH))
+        return true;
+    else
+        return false;
+}
+
+
 // Stop the stepper motor
 void stop_motor()
 {
@@ -216,6 +226,22 @@ void stop_motor()
     if (servo.read() > SERVO_STARTING_SPEED)
         // This way, when the motor is restarted, it won't go too fast and stall
         move_servo_to_start();
+}
+
+
+// If motor isn't currently running, run it
+void run_motor()
+{
+    if (!motor_running)
+    {
+        // If the servo is set above the maximum starting speed position, set that speed before running
+        if (servo.read() > SERVO_STARTING_SPEED)
+            move_servo_to_start();
+
+        // Once the servo reaches the maximum starting speed position, enable the motor
+        digitalWrite(output_enable, MOTOR_ON);
+        motor_running = true;
+    }
 }
 
 
@@ -236,22 +262,6 @@ void move_servo_to_max()
 {
     // zoom zoom
     servo.write(SERVO_MAX_SPEED);
-}
-
-
-// If motor isn't currently running, run it
-void run_motor()
-{
-    if (!motor_running)
-    {
-        // If the servo is set above the maximum starting speed position, move to it
-        if (servo.read() > SERVO_STARTING_SPEED)
-            move_servo_to_start();
-
-        // Once the servo reaches the maximum starting speed position, enable the motor
-        digitalWrite(output_enable, MOTOR_ON);
-        motor_running = true;
-    }
 }
 
 
@@ -333,16 +343,6 @@ void update_servo()
 }
 
 
-// Check if the turbo switch is currrently pressed
-bool turbo_engaged()
-{
-    if (digitalRead(input_turbo_activate_switch == HIGH))
-        return true;
-    else
-        return false;
-}
-
-
 // Print debugging info to console if DEBUG is defined at beginning
 void debug_print()
 {
@@ -366,6 +366,36 @@ void debug_print()
 }
 
 
+// If things that shouldn't happen, happen
+bool is_error()
+{
+    // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
+    if (is_moving_to_head() && is_moving_to_tail())
+        return true;
+    // We're moving, but we're not sure which direction
+    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
+        return true;
+    else
+        return false;
+}
+
+
+// Bad things happened. Stop running and freeze until we figure out what went wrong
+void protection_mode()
+{
+    stop_motor();
+
+    // Fix me. 
+    while (true)
+    {
+        head_limit_led.flash();
+        head_moving_led.flash();
+        tail_limit_led.flash();
+        tail_moving_led.flash();
+    }
+}
+
+
 // Main loop
 void loop()
 {
@@ -374,11 +404,16 @@ void loop()
 
     // If turbo is currently held
     if (turbo_engaged)
-        // Gotta go fast
-        move_servo_to_max();
+        if (motor_running)
+            // Gotta go fast
+            move_servo_to_max();
     else
         // Update the servo position to the speed pot 
         update_servo();
+
+    // Check for possible bugs and errors
+    if (is_error)
+        protection_mode();
 
     #ifdef DEBUG
     // If you're in debugging mode (defined at top of script), print debugging info
