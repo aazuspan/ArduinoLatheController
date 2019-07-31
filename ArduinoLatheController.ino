@@ -1,9 +1,9 @@
-// Visual Micro is in vMicro>General>Tutorial Mode
+// South Bend lathe leadscrew control firmware.
 // 
 /*
-    Name:       SB_Lathe_Controller.ino
+    Name:       ArduinoLatheController.ino
     Created:	7/29/2019 11:53:30 AM
-    Author:     DESKTOP-9SDRCVD\Admin
+    Author:     Aaron Zuspan
 */
 
 #include <Servo.h>
@@ -134,6 +134,97 @@ void setup()
 
     // Attach servo to output servo pin
     servo.attach(output_servo);
+
+    // Check that the limit switches are still connected correctly
+    check_limit_switches();
+}
+
+
+// Flash each limit LED until the lathe operator presses the limit switch for enough time to ensure they are connected correctly
+void check_limit_switches()
+{
+    // Time when the operator first presses the limit
+    long activate_time;
+    // Time when the operator releases the limit
+    long release_time;
+    // How long does the operator have to hold the limit to prove it's working (in milliseconds)?
+    int millis_hold_time = 750;
+
+    // Assume the limit is bad
+    bool head_limit_ok = false;
+
+    // Headstock limit checking loop
+    while (!head_limit_ok)
+    {
+        // Flash the LED
+        head_limit_led.flash();
+        // If the limit switch is pressed
+        if (is_at_head())
+        {
+            // Turn on the LED to signal the limit is pressed
+            head_limit_led.turn_on();
+            // Current time when the switch was pressed
+            activate_time = millis();
+
+            // Wait for the switch to be released
+            while (true)
+            {
+                // If they let go of the limit or it is intermittent
+                if (!is_at_head())
+                {
+                    // Current time when the switch is released
+                    release_time = millis();
+
+                    // If the switch was held down for long enough to confirm it's working
+                    if (release_time - activate_time >= millis_hold_time)
+                    {
+                        head_limit_led.turn_off();
+                        // End the check loop
+                        head_limit_ok = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Assume the limit is bad
+    bool tail_limit_ok = false;
+
+    // Tailstock limit checking loop
+    while (!tail_limit_ok)
+    {
+        // Flash the LED
+        tail_limit_led.flash();
+        // If the limit switch is pressed
+        if (is_at_tail())
+        {
+            // Turn on the LED to signal the limit is pressed
+            tail_limit_led.turn_on();
+            // Current time when the switch was pressed
+            activate_time = millis();
+
+            // Wait for the switch to be released
+            while (true)
+            {
+                // If they let go of the limit or it is intermittent
+                if (!is_at_tail())
+                {
+                    // Current time when the switch is released
+                    release_time = millis();
+
+                    // If the switch was held down for long enough to confirm it's working
+                    if (release_time - activate_time >= millis_hold_time)
+                    {
+                        tail_limit_led.turn_off();
+                        // End the check loop
+                        tail_limit_ok = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 
