@@ -14,10 +14,12 @@
 // LED object structure to control limit and movement LEDs
 struct LED
 {
+    // Current LED state
     bool on;
+    // Arduino pin
     int pin;
     // Determines LED flashing speed
-    int millis_between_flashes = 500;
+    const int millis_between_flashes = 250;
 
     // Object constructor
     LED(int a)
@@ -26,57 +28,34 @@ struct LED
         pin = a;
     }
 
-    // Flash LED on and off
+    // Flash LED on and off at a constant rate
     void flash()
     {
-        // Flash_interval represents how often the LED changes between on and off. The speed will change based on how long other code takes to run (aka 'bad programming')
-        const long flash_interval = 100000;
-
-        // Counter that controls LED state (50% on, 50% off)
-        static long counter = flash_interval;
-
-        // For the first half of the interval, LED is on
-        if (counter > flash_interval / 2)
-        {
-            turn_on();
-        }
-
-        // For the second half of the interval, LED is off
-        else if (counter > 0)
-        {
-            turn_off();
-        }
-
-        else
-            // When the interval is done, reset the counter
-            counter = flash_interval;
-
-        // Increment every time this function is called
-        counter -= 1;
-    }
-
-
-    void not_shitty_flash()
-    {
         // Last time the LED changed states
-        static long last_time = millis();
+        static long last_flash_time = millis();
         // Time when this function is called
         long current_time = millis();
 
         // If it's time to flash, flash
-        if (current_time - last_time > millis_between_flashes)
+        if (current_time - last_flash_time > millis_between_flashes)
         {
-            if (on)
-                turn_off();
-            else
-                turn_on();
-        
+            // Toggle the LED
+            toggle();
             // Update the last flash time
-            last_time = millis();
+            last_flash_time = millis();
         }
     }
 
-    // If not already on, turn on
+    // Toggle between on and off
+    void toggle()
+    {
+        if (on)
+            turn_off();
+        else 
+            turn_on();
+    }
+
+    // If off, turn on
     void turn_on()
     {
         // Digital reads are faster than digital writes, so it's worth checking
@@ -85,7 +64,6 @@ struct LED
             digitalWrite(pin, HIGH);
             on = true;
         }
-
     }
 
     // If on, turn off
@@ -128,10 +106,10 @@ const int MOTOR_OFF = HIGH;
 // Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
 const int SERVO_STARTING_SPEED = 100;
 
-// Maximum position (speed) for the servo (use this to limit the max speed setting)
+// Maximum position (speed) for the servo (use this if you want to limit the max speed setting)
 const int SERVO_MAX_SPEED = 180;
 
-// Used to keep track of whether motor is currently running
+// Is your motor running?
 bool motor_running = false;
 
 // Create the servo object
@@ -159,7 +137,7 @@ void setup()
 }
 
 
-// Set arduino pins to input / output
+// Set arduino pins to input / output at setup
 void set_pin_modes()
 {
     // Input pins
@@ -236,6 +214,7 @@ void stop_motor()
 
     // If servo is set above the maximum starting speed position, move to it
     if (servo.read() > SERVO_STARTING_SPEED)
+        // This way, when the motor is restarted, it won't go too fast and stall
         move_servo_to_start();
 }
 
@@ -243,10 +222,10 @@ void stop_motor()
 // Move servo to the maximum starting speed
 void move_servo_to_start()
 {
-    // Move the servo
+    // Move the servo to the maximum speed where it won't stall
     servo.write(SERVO_STARTING_SPEED);
 
-    // Wait until it reaches that position to release control
+    // Wait until it reaches that position to release control (because we don't trust the lathe operator)
     while (servo.read() > SERVO_STARTING_SPEED)
         delay(5);
 }
@@ -390,12 +369,12 @@ void debug_print()
 // Main loop
 void loop()
 {
-    // Check direction switch and move if set and limits are clear
+    // Check direction switch and move if it's set and limits are clear
     update_direction();
 
     // If turbo is currently held
     if (turbo_engaged)
-        // Move the speed to max
+        // Gotta go fast
         move_servo_to_max();
     else
         // Update the servo position to the speed pot 
