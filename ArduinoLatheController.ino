@@ -111,6 +111,8 @@ struct LimitSwitch
         long activate_time;
         // Time when the operator releases the limit switch
         long release_time;
+
+        long current_time;
         // How long does the operator have to hold the limit to prove it's working?
         int millis_hold_time = 1000;
 
@@ -127,8 +129,15 @@ struct LimitSwitch
                 // Wait for the switch to be released
                 while (true)
                 {
-                    // Flash fast to signal that the limit is pressed
-                    led.flash(50);
+                    current_time = millis();
+
+                    // If the switch has been held long enough
+                    if (current_time - activate_time < millis_hold_time)
+                        // Flash fast to signal that switch is held
+                        led.flash(50);
+                    else
+                        // Turn the LED off to signal that you can let go
+                        led.turn_off();
 
                     // If they let go of the switch or it is intermittent
                     if (!is_hit())
