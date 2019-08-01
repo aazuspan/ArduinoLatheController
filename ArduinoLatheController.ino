@@ -390,8 +390,21 @@ void update_direction()
 
     // If direction switch is in middle position
     else
+    {
         // Stop
         stop_motor();
+
+        // Turn on/off the appropriate limit LEDs
+        if (head_limit_switch.is_hit())
+            head_limit_led.turn_on();
+        else if (tail_limit_switch.is_hit())
+            tail_limit_led.turn_on();
+        else
+        {
+            head_limit_led.turn_off();
+            tail_limit_led.turn_off();
+        }
+    }
 }
 
 
@@ -453,9 +466,7 @@ void protection_mode()
     while (true)
     {
         head_limit_led.flash();
-        head_moving_led.flash();
         tail_limit_led.flash();
-        tail_moving_led.flash();
     }
 }
 
