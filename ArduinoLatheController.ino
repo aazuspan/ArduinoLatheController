@@ -8,7 +8,9 @@
 
 #include <Servo.h>
 
-#define DEBUG
+#define DEBUG_ON
+// Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
+//#define IM_AN_IDIOT
 
 
 // LED object structure to control limit and movement LEDs
@@ -207,7 +209,7 @@ LimitSwitch tail_limit_switch(tail_limit_led, input_tail_limit_switch);
 // The setup() function runs once each time the micro-controller starts
 void setup()
 {
-    #ifdef DEBUG
+    #ifdef DEBUG_ON
     Serial.begin(9600);
     #endif
 
@@ -217,9 +219,11 @@ void setup()
     // Attach servo to output servo pin
     servo.attach(output_servo);
 
-    // Check that the limit switches are still connected correctly
+    #ifndef IM_AN_IDIOT
+    // Check that the limit switches are still connected correctly (unless you're an idiot)
     head_limit_switch.check();
     tail_limit_switch.check();
+    #endif
 }
 
 
@@ -486,11 +490,13 @@ void loop()
         // Update the servo position to the speed pot 
         update_servo();
 
-    // Check for possible bugs and errors
+    #ifndef IM_AN_IDIOT
+    // Unless you're an idiot, check for possible bugs and errors
     if (is_error)
         protection_mode();
+    #endif
 
-    #ifdef DEBUG
+    #ifdef DEBUG_ON
     // If you're in debugging mode (defined at top of script), print debugging info
     debug_print();
     #endif
