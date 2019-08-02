@@ -8,7 +8,7 @@
 
 #include <Servo.h>
 
-#define DEBUG_ON
+//#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
 //#define IM_AN_IDIOT
 
@@ -218,6 +218,9 @@ LimitSwitch tail_limit_switch(tail_limit_led, input_tail_limit_switch);
 // The setup() function runs once each time the micro-controller starts
 void setup()
 {
+    // Begin with motor stopped
+    stop_motor();
+
     #ifdef DEBUG_ON
     Serial.begin(9600);
     #endif
@@ -261,7 +264,7 @@ void set_pin_modes()
 // Check if direction switch is towards head
 bool is_moving_to_head()
 {
-    if (input_head_direction_switch == HIGH)
+    if (digitalRead(input_head_direction_switch) == HIGH)
         return true;
     else
         return false;
@@ -271,7 +274,7 @@ bool is_moving_to_head()
 // Check if direction switch is towards tail
 bool is_moving_to_tail()
 {
-    if (input_tail_direction_switch == HIGH)
+    if (digitalRead(input_tail_direction_switch) == HIGH)
         return true;
     else
         return false;
@@ -281,7 +284,7 @@ bool is_moving_to_tail()
 // Check if the turbo switch is currrently pressed
 bool turbo_engaged()
 {
-    if (digitalRead(input_turbo_activate_switch == HIGH))
+    if (digitalRead(input_turbo_activate_switch) == HIGH)
         return true;
     else
         return false;
@@ -339,6 +342,7 @@ void move_servo_to_max()
 {
     // zoom zoom
     servo.write(SERVO_MAX_SPEED);
+    delay(15);
 }
 
 
@@ -346,7 +350,7 @@ void move_servo_to_max()
 void update_direction()
 {
     // If direction switch is towards head
-    if (is_moving_to_head)
+    if (is_moving_to_head())
     {
         // If headstock limit switch is reached
         if (head_limit_switch.is_hit())
@@ -374,7 +378,7 @@ void update_direction()
     }
 
     // If direction switch is towards tail
-    else if (is_moving_to_tail)
+    else if (is_moving_to_tail())
     {
         // If tailstock limit switch is reached
         if (tail_limit_switch.is_hit())
@@ -427,7 +431,7 @@ void update_servo()
     // Read the input position from the pot
     int input_position = analogRead(input_speed_pot);
     // Map the input range to the output range
-    int output_position = map(input_position, 0, 1023, 0, 180);
+    int output_position = map(input_position, 0, 1023, 1, 180);
     // Move the servo
     servo.write(output_position);
 }
@@ -436,35 +440,39 @@ void update_servo()
 // Print debugging info to console if DEBUG is defined at beginning
 void debug_print()
 {
-    // Only print every this many runs to save processing time
-    const int print_interval = 5000;
-    static int counter = print_interval;
-    if (counter > 0)
-        counter--;
-    else
-    {
-        Serial.print("Motor running: "); Serial.println(motor_running);
-        Serial.print("Servo position: "); Serial.println(servo.read());
-        Serial.print("Headstock limit switch: "); Serial.println(head_limit_switch.is_hit());
-        Serial.print("Tailtock limit switch: "); Serial.println(tail_limit_switch.is_hit());
-        Serial.print("Moving towards headstock: "); Serial.println(is_moving_to_head());
-        Serial.print("Moving towards tailstock: "); Serial.println(is_moving_to_tail());
-        Serial.print("\n\n");
-        // Reset counter
-        counter = print_interval;
-    }
+    Serial.print("Motor running: "); Serial.println(motor_running);
+    Serial.print("Servo position: "); Serial.println(servo.read());
+    Serial.print("Headstock limit switch: "); Serial.println(head_limit_switch.is_hit());
+    Serial.print("Tailtock limit switch: "); Serial.println(tail_limit_switch.is_hit());
+    Serial.print("Moving towards headstock: "); Serial.println(is_moving_to_head());
+    Serial.print("Moving towards tailstock: "); Serial.println(is_moving_to_tail());
+    Serial.print("\n\n");
 }
 
 
 // If things that shouldn't happen, happen
 bool is_error()
 {
+    debug_print();
     // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
     if (is_moving_to_head() && is_moving_to_tail())
+    {
+#ifdef DEBUG_ON
+        debug_print();
+        Serial.println("ERROR: Both direction switches pressed.");
+#endif 
         return true;
+    }
     // We're moving, but we're not sure which direction
-    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
-        return true;
+    
+//    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
+//    {
+//#ifdef DEBUG_ON
+//        debug_print();
+//        Serial.println("ERROR: Motor running and not moving either direction.");
+//#endif 
+//        return true;
+//    }
     else
         return false;
 }
@@ -490,23 +498,33 @@ void loop()
     // Check direction switch and move if it's set and limits are clear
     update_direction();
 
-    // If turbo is currently held
-    if (turbo_engaged)
-        if (motor_running)
-            // Gotta go fast
-            move_servo_to_max();
+    // If turbo is currently held and motor is running
+    if (turbo_engaged() && motor_running)
+        // Gotta go fast
+        move_servo_to_max();
     else
         // Update the servo position to the speed pot 
         update_servo();
 
     #ifndef IM_AN_IDIOT
-    // Unless you're an idiot, check for possible bugs and errors
-    if (is_error)
+    // Unless you're an idiot (defined at top of script), check for possible bugs and errors
+    if (is_error())
         protection_mode();
     #endif
 
     #ifdef DEBUG_ON
-    // If you're in debugging mode (defined at top of script), print debugging info
-    debug_print();
+    // Only print every this many runs to save processing time
+    const int print_interval = 5000;
+    static int counter = print_interval;
+    if (counter > 0)
+        counter--;
+    else
+    {
+        // If you're in debugging mode (defined at top of script), print debugging info
+        debug_print();
+        // Reset the counter
+        counter = print_interval;
+    }
+
     #endif
 }
