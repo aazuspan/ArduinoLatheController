@@ -301,11 +301,6 @@ void stop_motor()
     // Turn moving LEDs off
     head_moving_led.turn_off();
     tail_moving_led.turn_off();
-
-    // If servo is set above the maximum starting speed position, move to it
-    if (servo.read() > SERVO_STARTING_SPEED)
-        // This way, when the motor is restarted, it won't go too fast and stall
-        move_servo_to_start();
 }
 
 
@@ -330,10 +325,11 @@ void move_servo_to_start()
 {
     // Move the servo to the maximum speed where it won't stall
     servo.write(SERVO_STARTING_SPEED);
+    delay(1000);
 
     // Wait until it reaches that position to release control (because we don't trust the lathe operator)
-    while (servo.read() > SERVO_STARTING_SPEED)
-        delay(5);
+    //while (servo.read() > SERVO_STARTING_SPEED)
+    //    delay(5);
 }
 
 
@@ -413,8 +409,9 @@ void update_direction()
     // If direction switch is in middle position
     else
     {
-        // Stop
-        stop_motor();
+        if (motor_running)
+            // Stop
+            stop_motor();
 
         // Turn on/off the appropriate limit LEDs
         if (head_limit_switch.is_hit())
