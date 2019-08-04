@@ -8,6 +8,7 @@
 
 #include <Servo.h>
 
+
 //#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
 //#define IM_AN_IDIOT
@@ -89,7 +90,7 @@ struct LimitSwitch
     LED led;
 
     // Object constructor
-    LimitSwitch(LED a, int b)
+    LimitSwitch(LED a=0, int b=0)
     {
         pin = b;
         led = a;
@@ -184,7 +185,7 @@ const int output_tail_limit_led = 4;
 const int output_head_moving_led = 3;
 const int output_tail_moving_led = 5;
 
-// Direction values to pass to stepper driver direction pin ***NOTE, THESE MIGHT BE BACKWARDS****
+// Direction values to pass to stepper driver direction pin
 const int TO_TAIL = HIGH;
 const int TO_HEAD = LOW;
 
@@ -199,7 +200,6 @@ const int SERVO_STARTING_SPEED = 100;
 const int SERVO_MAX_SPEED = 180;
 // Minimum position (speed) for the servo 
 const int SERVO_MIN_SPEED = 1;
-
 
 // Is your motor running?
 bool motor_running = false;
@@ -225,7 +225,7 @@ void setup()
     stop_motor();
 
     #ifdef DEBUG_ON
-    Serial.begin(9600);
+    Serial.begin(115200);
     #endif
 
     // Set input and output pin modes on Arduino
@@ -433,6 +433,7 @@ void update_servo()
 {
     // Read the input position from the pot
     int input_position = analogRead(input_speed_pot);
+
     // Map the input range to the output range
     int output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
     // Move the servo
@@ -466,8 +467,8 @@ bool is_error()
 #endif 
         return true;
     }
+
     // We're moving, but we're not sure which direction
-    
 //    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
 //    {
 //#ifdef DEBUG_ON
