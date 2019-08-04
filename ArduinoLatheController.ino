@@ -195,8 +195,11 @@ const int MOTOR_OFF = HIGH;
 // Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
 const int SERVO_STARTING_SPEED = 100;
 
-// Maximum position (speed) for the servo (use this if you want to limit the max speed setting)
+// Maximum position (speed) for the servo (use this to limit how far the speed control can be turned by the servo)
 const int SERVO_MAX_SPEED = 180;
+// Minimum position (speed) for the servo 
+const int SERVO_MIN_SPEED = 1;
+
 
 // Is your motor running?
 bool motor_running = false;
@@ -325,11 +328,9 @@ void move_servo_to_start()
 {
     // Move the servo to the maximum speed where it won't stall
     servo.write(SERVO_STARTING_SPEED);
-    delay(1000);
 
-    // Wait until it reaches that position to release control (because we don't trust the lathe operator)
-    //while (servo.read() > SERVO_STARTING_SPEED)
-    //    delay(5);
+    // Wait for it to get there
+    delay(500);
 }
 
 
@@ -433,7 +434,7 @@ void update_servo()
     // Read the input position from the pot
     int input_position = analogRead(input_speed_pot);
     // Map the input range to the output range
-    int output_position = map(input_position, 0, 1023, 1, 180);
+    int output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
     // Move the servo
     servo.write(output_position);
 }
