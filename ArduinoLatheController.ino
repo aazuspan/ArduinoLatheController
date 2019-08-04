@@ -114,7 +114,7 @@ struct LimitSwitch
 
         long current_time;
         // How long does the operator have to hold the limit to prove it's working?
-        int millis_hold_time = 1000;
+        int millis_hold_time = 500;
 
         // Switch checking loop
         while (!checked)
@@ -357,15 +357,17 @@ void update_direction()
         {
             // Avoid crashing into the headstock
             stop_motor();
-            // Turn the headstock warning LED on
-            head_limit_led.turn_on();
-            // Flash the headstock moving LED
-            head_moving_led.flash();
+            // Flash the headstock warning LED
+            head_limit_led.flash(100);
         }
 
         // If head limit switch hasn't been reached
         else
         {
+            // Turn off the tail limit switch if necessary
+            if (!tail_limit_switch.is_hit())
+                tail_limit_led.turn_off();
+
             // Set stepper direction towards head
             digitalWrite(output_direction, TO_HEAD);
             // Turn the 'moving towards head' LED on
@@ -385,15 +387,18 @@ void update_direction()
         {
             // Avoid crashing into the tailstock
             stop_motor();
-            // Turn the tailstock warning LED on
-            tail_limit_led.turn_on();
-            // Flash the tailstock moving LED
-            tail_moving_led.flash();
+            // Flash the tailstock warning LED
+            tail_limit_led.flash(100);
         }
         
+
         // If tail limit switch hasn't been reached
         else
         {
+            // Turn off the head limit switch if necessary
+            if (!head_limit_switch.is_hit())
+                head_limit_led.turn_off();
+
             // Set stepper direction towards tail
             digitalWrite(output_direction, TO_TAIL);
             // Turn the 'moving towards tail' LED on
