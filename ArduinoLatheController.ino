@@ -105,6 +105,15 @@ struct LimitSwitch
             return false;
     }
 
+    // Turn the limit LED on or off based on switch state
+    void update_led()
+    {
+        if (is_hit())
+            led.turn_on();
+        else
+            led.turn_off();
+    }
+
     // Test if the limit switch works by flashing the LED and having the operator hold the limit. If the switch doesn't work, the program will get stuck in this loop
     void check()
     {
@@ -168,6 +177,83 @@ struct LimitSwitch
 };
 
 
+// Direction object (headstock or tailstock) containing the relevant limit switch, LEDs, and direction pins 
+struct Direction
+{
+    LimitSwitch limit;
+    LED moving_led;
+    LED limit_led;
+    // Input pin from direction switch
+    int input_pin;
+    // Output pin to stepper driver direction
+    int output_pin;
+    // Value to pass to the stepper driver direction pin when moving
+    int value;
+
+    Direction(LimitSwitch a, LED b, LED c, int d, int e, int f)
+    {
+        limit = a;
+        moving_led = b;
+        limit_led = c;
+        input_pin = d;
+        output_pin = e;
+        value = f;
+    }
+
+    // Check if the direction switch is set in this direction
+    bool is_moving_towards()
+    {
+        if (digitalRead(input_pin) == HIGH)
+            return true;
+        else
+            return false;
+    }
+
+    // Set the stepper driver towards this direction
+    void set_direction()
+    {
+        digitalWrite(output_pin, value);
+    }
+
+    // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
+    bool check()
+    {
+        // If direction switch is hit
+        if (is_moving_towards())
+        {
+            // If the limit is reached
+            if (limit.is_hit())
+            {
+                // Don't crash
+                stop_motor();
+                // Turn the moving LED off
+                moving_led.turn_off();
+                // Flash the warning LED
+                limit_led.flash(100);
+            }
+
+            // If the limit hasn't been reached
+            else
+            {
+                // TODO: If the opposite limit isn't hit anymore, turn its LED off
+
+                // Set the stepper driver direction
+                set_direction();
+                // Turn on the moving LED
+                moving_led.turn_on();
+                // Turn off the limit LED in case it was still on
+                limit_led.turn_off();
+                // Go!
+                run_motor();
+            }
+            return true;
+        }
+        else
+            return false;
+    }
+};
+
+
 // Input pin assignment
 const int input_speed_pot = A0;
 const int input_turbo_activate_switch = 11;
@@ -213,9 +299,13 @@ LED tail_limit_led(output_tail_limit_led);
 LED head_moving_led(output_head_moving_led);
 LED tail_moving_led(output_tail_moving_led);
 
-// Create the limit switch objects with their pin assignments
+// Create the limit switch objects with their pin assignments 
 LimitSwitch head_limit_switch(head_limit_led, input_head_limit_switch);
 LimitSwitch tail_limit_switch(tail_limit_led, input_tail_limit_switch);
+
+// Create the direction objects
+Direction headstock(head_limit_switch, head_moving_led, head_limit_led, input_head_direction_switch, output_direction, TO_HEAD);
+Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, input_tail_direction_switch, output_direction, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -264,26 +354,6 @@ void set_pin_modes()
 }
 
 
-// Check if direction switch is towards head
-bool is_moving_to_head()
-{
-    if (digitalRead(input_head_direction_switch) == HIGH)
-        return true;
-    else
-        return false;
-}
-
-
-// Check if direction switch is towards tail
-bool is_moving_to_tail()
-{
-    if (digitalRead(input_tail_direction_switch) == HIGH)
-        return true;
-    else
-        return false;
-}
-
-
 // Check if the turbo switch is currrently pressed
 bool turbo_engaged()
 {
@@ -302,8 +372,8 @@ void stop_motor()
     motor_running = false;
 
     // Turn moving LEDs off
-    head_moving_led.turn_off();
-    tail_moving_led.turn_off();
+    headstock.moving_led.turn_off();
+    tailstock.moving_led.turn_off();
 }
 
 
@@ -346,83 +416,22 @@ void move_servo_to_max()
 // Check direction switch position and move accordingly if limits aren't hit
 void update_direction()
 {
-    // If direction switch is towards head
-    if (is_moving_to_head())
+    // Check if we should move towards headstock and do it
+    if (!headstock.check())
     {
-        // If headstock limit switch is reached
-        if (head_limit_switch.is_hit())
+        // If we didn't, check if we should move towards tailstock and do it
+        if (!tailstock.check())
         {
-            // Avoid crashing into the headstock
-            stop_motor();
-            // Flash the headstock warning LED
-            head_limit_led.flash(100);
-        }
+            // If we didn't move towards headstock or tailstock, direction switch must be in middle position
+            if (motor_running)
+            {
+                // Stop
+                stop_motor();
+            }
 
-        // If head limit switch hasn't been reached
-        else
-        {
-            // Turn off the tail limit switch if necessary
-            if (!tail_limit_switch.is_hit())
-                tail_limit_led.turn_off();
-
-            // Set stepper direction towards head
-            digitalWrite(output_direction, TO_HEAD);
-            // Turn the 'moving towards head' LED on
-            head_moving_led.turn_on();
-            // Turn the headstock warning LED off
-            head_limit_led.turn_off();
-            // Run the motor
-            run_motor();
-        }
-    }
-
-    // If direction switch is towards tail
-    else if (is_moving_to_tail())
-    {
-        // If tailstock limit switch is reached
-        if (tail_limit_switch.is_hit())
-        {
-            // Avoid crashing into the tailstock
-            stop_motor();
-            // Flash the tailstock warning LED
-            tail_limit_led.flash(100);
-        }
-        
-
-        // If tail limit switch hasn't been reached
-        else
-        {
-            // Turn off the head limit switch if necessary
-            if (!head_limit_switch.is_hit())
-                head_limit_led.turn_off();
-
-            // Set stepper direction towards tail
-            digitalWrite(output_direction, TO_TAIL);
-            // Turn the 'moving towards tail' LED on
-            tail_moving_led.turn_on();
-            // Turn the tailstock warning LED off
-            tail_limit_led.turn_off();
-            // Run the motor
-            run_motor();
-        }
-    }
-
-    // If direction switch is in middle position
-    else
-    {
-        if (motor_running)
-            // Stop
-            stop_motor();
-
-        // Turn on/off the appropriate limit LEDs
-        if (head_limit_switch.is_hit())
-            head_limit_led.turn_on();
-        else if (tail_limit_switch.is_hit())
-            tail_limit_led.turn_on();
-        else
-        {
-            head_limit_led.turn_off();
-            tail_limit_led.turn_off();
+            // Turn on/off the appropriate limit LEDs
+            headstock.limit.update_led();
+            tailstock.limit.update_led();
         }
     }
 }
@@ -448,8 +457,8 @@ void debug_print()
     Serial.print("Servo position: "); Serial.println(servo.read());
     Serial.print("Headstock limit switch: "); Serial.println(head_limit_switch.is_hit());
     Serial.print("Tailtock limit switch: "); Serial.println(tail_limit_switch.is_hit());
-    Serial.print("Moving towards headstock: "); Serial.println(is_moving_to_head());
-    Serial.print("Moving towards tailstock: "); Serial.println(is_moving_to_tail());
+    Serial.print("Moving towards headstock: "); Serial.println(headstock.is_moving_towards());
+    Serial.print("Moving towards tailstock: "); Serial.println(tailstock.is_moving_towards());
     Serial.print("\n\n");
 }
 
@@ -459,7 +468,7 @@ bool is_error()
 {
     debug_print();
     // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
-    if (is_moving_to_head() && is_moving_to_tail())
+    if (headstock.is_moving_towards() && tailstock.is_moving_towards())
     {
 #ifdef DEBUG_ON
         debug_print();
@@ -490,8 +499,8 @@ void protection_mode()
     // Fix me. 
     while (true)
     {
-        head_limit_led.flash();
-        tail_limit_led.flash();
+        headstock.limit_led.flash();
+        tailstock.limit_led.flash();
     }
 }
 
