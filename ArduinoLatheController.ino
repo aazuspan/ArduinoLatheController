@@ -56,25 +56,16 @@ struct LED
             turn_on();
     }
 
-    // If off, turn on
     void turn_on()
     {
-        // Digital reads are faster than digital writes, so it's worth checking
-        if (!on)
-        {
-            digitalWrite(pin, HIGH);
-            on = true;
-        }
+        digitalWrite(pin, HIGH);
+        on = true;
     }
 
-    // If on, turn off
     void turn_off()
     {
-        if (on)
-        {
-            digitalWrite(pin, LOW);
-            on = false;
-        }
+        digitalWrite(pin, LOW);
+        on = false;
     }
 };
 
@@ -190,6 +181,7 @@ struct Direction
     // Value to pass to the stepper driver direction pin when moving
     int value;
 
+    // Object constructor
     Direction(LimitSwitch a, LED b, LED c, int d, int e, int f)
     {
         limit = a;
@@ -216,7 +208,7 @@ struct Direction
     }
 
     // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
-    bool check()
+    bool check(Direction other)
     {
         // If direction switch is hit
         if (is_moving_towards())
@@ -235,8 +227,6 @@ struct Direction
             // If the limit hasn't been reached
             else
             {
-                // TODO: If the opposite limit isn't hit anymore, turn its LED off
-
                 // Set the stepper driver direction
                 set_direction();
                 // Turn on the moving LED
@@ -245,6 +235,10 @@ struct Direction
                 limit_led.turn_off();
                 // Go!
                 run_motor();
+
+                // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
+                if (!other.limit.is_hit())
+                    other.limit_led.turn_off();
             }
             return true;
         }
@@ -417,23 +411,24 @@ void move_servo_to_max()
 void update_direction()
 {
     // Check if we should move towards headstock and do it
-    if (!headstock.check())
+    if (!headstock.check(tailstock))
     {
         // If we didn't, check if we should move towards tailstock and do it
-        if (!tailstock.check())
+        if (!tailstock.check(headstock))
         {
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
             if (motor_running)
-            {
                 // Stop
                 stop_motor();
-            }
 
             // Turn on/off the appropriate limit LEDs
             headstock.limit.update_led();
             tailstock.limit.update_led();
         }
     }
+
+
+
 }
 
 
