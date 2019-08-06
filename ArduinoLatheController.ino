@@ -18,14 +18,13 @@
 struct LED
 {
     // Current LED state
-    bool on = false;
+    bool m_on = false;
     // Arduino pin
-    int pin;
+    int m_pin;
 
     // Object constructor with default values
-    LED(int a = 0)
+    LED(int pin = 0) : m_pin(pin)
     {
-        pin = a;
     }
 
     // Flash LED on and off at a constant rate (default 250ms between)
@@ -50,7 +49,7 @@ struct LED
     // Toggle between on and off
     void toggle()
     {
-        if (on)
+        if (m_on)
             turn_off();
         else
             turn_on();
@@ -58,51 +57,63 @@ struct LED
 
     void turn_on()
     {
-        digitalWrite(pin, HIGH);
-        on = true;
+        digitalWrite(m_pin, HIGH);
+        m_on = true;
     }
 
     void turn_off()
     {
-        digitalWrite(pin, LOW);
-        on = false;
+        digitalWrite(m_pin, LOW);
+        m_on = false;
     }
 };
 
 
-// Limit switch object to control headstock and tailstock limit switches
-struct LimitSwitch
+// Switch object that keeps track of input pin and current status
+struct Switch
 {
-    // Switches haven't been checked until the check method is run
-    bool checked = false;
-    // Arduino pin
-    int pin;
-    // LED indicator for this limit siwtch
-    LED led;
+    // Arduino input pin for the switch
+    int m_pin;
 
     // Object constructor
-    LimitSwitch(LED a=0, int b=0)
+    Switch(int pin=0)
+        : m_pin(pin)
     {
-        pin = b;
-        led = a;
     }
 
     // Check if the switch is hit and return boolean
     bool is_hit()
     {
-        if (digitalRead(pin) == HIGH)
+        if (digitalRead(m_pin) == HIGH)
             return true;
         else
             return false;
+    }
+};
+
+
+// Limit switch sub-class to control headstock and tailstock limit switches
+struct LimitSwitch : public Switch
+{
+    // Switches haven't been checked until the check method is run
+    bool checked = false;
+
+    // LED indicator for this limit siwtch
+    LED m_led;
+
+    // Object constructor
+    LimitSwitch(int pin, LED led=0)
+        : Switch(pin), m_led(led)
+    {
     }
 
     // Turn the limit LED on or off based on switch state
     void update_led()
     {
         if (is_hit())
-            led.turn_on();
+            m_led.turn_on();
         else
-            led.turn_off();
+            m_led.turn_off();
     }
 
     // Test if the limit switch works by flashing the LED and having the operator hold the limit. If the switch doesn't work, the program will get stuck in this loop
@@ -120,7 +131,7 @@ struct LimitSwitch
         // Switch checking loop
         while (!checked)
         {
-            led.flash();
+            m_led.flash();
             // Check if the switch is pressed
             if (is_hit())
             {
@@ -135,10 +146,10 @@ struct LimitSwitch
                     // If the switch has been held long enough
                     if (current_time - activate_time < millis_hold_time)
                         // Flash fast to signal that switch is held
-                        led.flash(50);
+                        m_led.flash(50);
                     else
                         // Turn the LED off to signal that you can let go
-                        led.turn_off();
+                        m_led.turn_off();
 
                     // If they let go of the switch or it is intermittent
                     if (!is_hit())
@@ -149,7 +160,7 @@ struct LimitSwitch
                         // If the switch was held for long enough to confirm it's working
                         if (release_time - activate_time >= millis_hold_time)
                         {
-                            led.turn_off();
+                            m_led.turn_off();
                             // Good to go
                             checked = true;
                             break;
@@ -171,31 +182,26 @@ struct LimitSwitch
 // Direction object (headstock or tailstock) containing the relevant limit switch, LEDs, and direction pins 
 struct Direction
 {
-    LimitSwitch limit;
-    LED moving_led;
-    LED limit_led;
+    LimitSwitch m_limit;
+    LED m_moving_led;
+    LED m_limit_led;
     // Input pin from direction switch
-    int input_pin;
+    int m_input_pin;
     // Output pin to stepper driver direction
-    int output_pin;
+    int m_output_pin;
     // Value to pass to the stepper driver direction pin when moving
-    DirectionValue value;
+    DirectionValue m_value;
 
     // Object constructor
-    Direction(LimitSwitch a, LED b, LED c, int d, int e, int f)
+    Direction(LimitSwitch limit, LED moving_led, LED limit_led, int input_pin, int output_pin, DirectionValue value)
+        : m_limit(limit), m_moving_led(moving_led), m_limit_led(limit_led), m_input_pin(input_pin), m_output_pin(output_pin), m_value(value)
     {
-        limit = a;
-        moving_led = b;
-        limit_led = c;
-        input_pin = d;
-        output_pin = e;
-        value = f;
     }
 
     // Check if the direction switch is set in this direction
     bool is_moving_towards()
     {
-        if (digitalRead(input_pin) == HIGH)
+        if (digitalRead(m_input_pin) == HIGH)
             return true;
         else
             return false;
@@ -204,7 +210,7 @@ struct Direction
     // Set the stepper driver towards this direction
     void set_direction()
     {
-        digitalWrite(output_pin, value);
+        digitalWrite(m_output_pin, m_value);
     }
 
     // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
@@ -214,14 +220,14 @@ struct Direction
         if (is_moving_towards())
         {
             // If the limit is reached
-            if (limit.is_hit())
+            if (m_limit.is_hit())
             {
                 // Don't crash
                 stop_motor();
                 // Turn the moving LED off
-                moving_led.turn_off();
+                m_moving_led.turn_off();
                 // Flash the warning LED
-                limit_led.flash(100);
+                m_limit_led.flash(100);
             }
 
             // If the limit hasn't been reached
@@ -230,15 +236,15 @@ struct Direction
                 // Set the stepper driver direction
                 set_direction();
                 // Turn on the moving LED
-                moving_led.turn_on();
+                m_moving_led.turn_on();
                 // Turn off the limit LED in case it was still on
-                limit_led.turn_off();
+                m_limit_led.turn_off();
                 // Go!
                 run_motor();
 
                 // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
-                if (!other.limit.is_hit())
-                    other.limit_led.turn_off();
+                if (!other.m_limit.is_hit())
+                    other.m_limit_led.turn_off();
             }
             return true;
         }
@@ -296,8 +302,8 @@ LED head_moving_led(output_head_moving_led);
 LED tail_moving_led(output_tail_moving_led);
 
 // Create the limit switch objects with their pin assignments 
-LimitSwitch head_limit_switch(head_limit_led, input_head_limit_switch);
-LimitSwitch tail_limit_switch(tail_limit_led, input_tail_limit_switch);
+LimitSwitch head_limit_switch(input_head_limit_switch, head_limit_led);
+LimitSwitch tail_limit_switch(input_tail_limit_switch, tail_limit_led);
 
 // Create the direction objects
 Direction headstock(head_limit_switch, head_moving_led, head_limit_led, input_head_direction_switch, output_direction, TO_HEAD);
@@ -322,8 +328,8 @@ void setup()
 
     #ifndef IM_AN_IDIOT
         // Check that the limit switches are still connected correctly (unless you're an idiot)
-        headstock.limit.check();
-        tailstock.limit.check();
+        headstock.m_limit.check();
+        tailstock.m_limit.check();
     #endif
 }
 
@@ -368,8 +374,8 @@ void stop_motor()
     motor_running = false;
 
     // Turn moving LEDs off
-    headstock.moving_led.turn_off();
-    tailstock.moving_led.turn_off();
+    headstock.m_moving_led.turn_off();
+    tailstock.m_moving_led.turn_off();
 }
 
 
@@ -424,8 +430,8 @@ void update_direction()
                 stop_motor();
 
             // Turn on/off the appropriate limit LEDs
-            headstock.limit.update_led();
-            tailstock.limit.update_led();
+            headstock.m_limit.update_led();
+            tailstock.m_limit.update_led();
         }
     }
 
@@ -452,8 +458,8 @@ void debug_print()
 {
     Serial.print("Motor running: "); Serial.println(motor_running);
     Serial.print("Servo position: "); Serial.println(servo.read());
-    Serial.print("Headstock limit switch: "); Serial.println(headstock.limit.is_hit());
-    Serial.print("Tailtock limit switch: "); Serial.println(tailstock.limit.is_hit());
+    Serial.print("Headstock limit switch: "); Serial.println(headstock.m_limit.is_hit());
+    Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_limit.is_hit());
     Serial.print("Moving towards headstock: "); Serial.println(headstock.is_moving_towards());
     Serial.print("Moving towards tailstock: "); Serial.println(tailstock.is_moving_towards());
     Serial.print("\n\n");
@@ -496,8 +502,8 @@ void protection_mode()
     // Fix me. 
     while (true)
     {
-        headstock.limit_led.flash();
-        tailstock.limit_led.flash();
+        headstock.m_limit_led.flash();
+        tailstock.m_limit_led.flash();
     }
 }
 
