@@ -14,6 +14,52 @@
 //#define IM_ AN_IDIOT
 
 
+// Stepper motor object to track state and control the leadscrew drive motor
+class Motor
+{
+private:
+    // Enable values to pass to stepper driver enable pin
+    const byte m_MOTOR_ON = LOW;
+    const byte m_MOTOR_OFF = HIGH;
+    const byte m_enable_pin;
+
+public:
+    bool m_running;
+
+    // Object constructor
+    Motor(byte enable_pin)
+        : m_enable_pin(enable_pin), m_running(false)
+    {}
+
+    // Stop the motor
+    void stop()
+    {
+        // Disable motor
+        digitalWrite(m_enable_pin, m_MOTOR_OFF);
+        m_running = false;
+
+        // Turn moving LEDs off
+        headstock.m_moving_led.turn_off();
+        tailstock.m_moving_led.turn_off();
+    }
+
+    // If motor isn't currently running, run it
+    void run()
+    {
+        if (!m_running)
+        {
+            // If the servo is set above the maximum starting speed position, set that speed before running
+            if (servo.read() > SERVO_STARTING_SPEED)
+                move_servo_to_start();
+
+            // Once the servo reaches the maximum starting speed position, enable the motor
+            digitalWrite(m_enable_pin, m_MOTOR_ON);
+            m_running = true;
+        }
+    }
+};
+
+
 // LED object structure to control limit and movement LEDs
 class LED
 {
@@ -223,7 +269,7 @@ public:
             if (m_limit.is_hit())
             {
                 // Don't crash
-                stop_motor();
+                stepper.stop();
                 // Turn the moving LED off
                 m_moving_led.turn_off();
                 // Flash the warning LED
@@ -240,7 +286,7 @@ public:
                 // Turn off the limit LED in case it was still on
                 m_limit_led.turn_off();
                 // Go!
-                run_motor();
+                stepper.run();
 
                 // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
                 if (!other.m_limit.is_hit())
@@ -283,10 +329,6 @@ enum DirectionValue
 };
 
 
-// Enable values to pass to stepper driver enable pin
-const byte MOTOR_ON = LOW;
-const byte MOTOR_OFF = HIGH;
-
 // Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
 const byte SERVO_STARTING_SPEED = 100;
 
@@ -295,11 +337,11 @@ const byte SERVO_MAX_SPEED = 180;
 // Minimum position (speed) for the servo 
 const byte SERVO_MIN_SPEED = 1;
 
-// Is your motor running?
-bool motor_running = false;
-
 // Create the servo object
 Servo servo;
+
+// Create the stepper motor object
+Motor stepper(pins::output_enable);
 
 // Create the LED objects
 LED head_limit_led(pins::output_head_limit_led);
@@ -325,7 +367,7 @@ Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_dir
 void setup()
 {
     // Begin with motor stopped
-    stop_motor();
+    stepper.stop();
 
     // Set input and output pin modes on Arduino
     set_pin_modes();
@@ -367,35 +409,6 @@ void set_pin_modes()
 }
 
 
-// Stop the stepper motor
-void stop_motor()
-{
-    // Disable motor
-    digitalWrite(pins::output_enable, MOTOR_OFF);
-    motor_running = false;
-
-    // Turn moving LEDs off
-    headstock.m_moving_led.turn_off();
-    tailstock.m_moving_led.turn_off();
-}
-
-
-// If motor isn't currently running, run it
-void run_motor()
-{
-    if (!motor_running)
-    {
-        // If the servo is set above the maximum starting speed position, set that speed before running
-        if (servo.read() > SERVO_STARTING_SPEED)
-            move_servo_to_start();
-
-        // Once the servo reaches the maximum starting speed position, enable the motor
-        digitalWrite(pins::output_enable, MOTOR_ON);
-        motor_running = true;
-    }
-}
-
-
 // Move servo to the maximum starting speed
 void move_servo_to_start()
 {
@@ -425,9 +438,9 @@ void update_direction()
         if (!tailstock.check(headstock))
         {
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
-            if (motor_running)
+            if (stepper.m_running)
                 // Stop
-                stop_motor();
+                stepper.stop();
 
             // Turn on/off the appropriate limit LEDs
             headstock.m_limit.update_led();
@@ -456,7 +469,7 @@ void update_servo()
 // Print debugging info to console if DEBUG is defined at beginning
 void debug_print()
 {
-    Serial.print("Motor running: "); Serial.println(motor_running);
+    Serial.print("Motor running: "); Serial.println(stepper.m_running);
     Serial.print("Servo position: "); Serial.println(servo.read());
     Serial.print("Headstock limit switch: "); Serial.println(headstock.m_limit.is_hit());
     Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_limit.is_hit());
@@ -497,7 +510,7 @@ bool is_error()
 // Bad things happened. Stop running and freeze until we figure out what went wrong
 void protection_mode()
 {
-    stop_motor();
+    stepper.stop();
 
     // Fix me. 
     while (true)
@@ -515,7 +528,7 @@ void loop()
     update_direction();
 
     // If turbo is currently held and motor is running
-    if (turbo_switch.is_hit() && motor_running)
+    if (turbo_switch.is_hit() && stepper.m_running)
         // Gotta go fast
         move_servo_to_max();
     else
