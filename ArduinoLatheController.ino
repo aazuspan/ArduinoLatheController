@@ -185,26 +185,17 @@ struct Direction
     LimitSwitch m_limit;
     LED m_moving_led;
     LED m_limit_led;
-    // Input pin from direction switch
-    int m_input_pin;
+    // Direction switch object that controls movement
+    Switch m_direction_switch;
     // Output pin to stepper driver direction
     int m_output_pin;
     // Value to pass to the stepper driver direction pin when moving
     DirectionValue m_value;
 
     // Object constructor
-    Direction(LimitSwitch limit, LED moving_led, LED limit_led, int input_pin, int output_pin, DirectionValue value)
-        : m_limit(limit), m_moving_led(moving_led), m_limit_led(limit_led), m_input_pin(input_pin), m_output_pin(output_pin), m_value(value)
+    Direction(LimitSwitch limit, LED moving_led, LED limit_led, Switch direction_switch, int output_pin, DirectionValue value)
+        : m_limit(limit), m_moving_led(moving_led), m_limit_led(limit_led), m_direction_switch(direction_switch), m_output_pin(output_pin), m_value(value)
     {
-    }
-
-    // Check if the direction switch is set in this direction
-    bool is_moving_towards()
-    {
-        if (digitalRead(m_input_pin) == HIGH)
-            return true;
-        else
-            return false;
     }
 
     // Set the stepper driver towards this direction
@@ -216,8 +207,8 @@ struct Direction
     // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
     bool check(Direction other)
     {
-        // If direction switch is hit
-        if (is_moving_towards())
+        // If this direction switch is engaged
+        if (m_direction_switch.is_hit())
         {
             // If the limit is reached
             if (m_limit.is_hit())
@@ -295,19 +286,24 @@ bool motor_running = false;
 // Create the servo object
 Servo servo;
 
-// Create the LED objects with their pin assignments
+// Create the LED objects
 LED head_limit_led(output_head_limit_led);
 LED tail_limit_led(output_tail_limit_led);
 LED head_moving_led(output_head_moving_led);
 LED tail_moving_led(output_tail_moving_led);
 
-// Create the limit switch objects with their pin assignments 
+// Create the turbo and direction switch objects
+Switch turbo_switch(input_turbo_activate_switch);
+Switch head_direction_switch(input_head_direction_switch);
+Switch tail_direction_switch(input_tail_direction_switch);
+
+// Create the limit switch objects
 LimitSwitch head_limit_switch(input_head_limit_switch, head_limit_led);
 LimitSwitch tail_limit_switch(input_tail_limit_switch, tail_limit_led);
 
 // Create the direction objects
-Direction headstock(head_limit_switch, head_moving_led, head_limit_led, input_head_direction_switch, output_direction, TO_HEAD);
-Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, input_tail_direction_switch, output_direction, TO_TAIL);
+Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, output_direction, TO_HEAD);
+Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, output_direction, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -353,16 +349,6 @@ void set_pin_modes()
     pinMode(output_tail_limit_led, OUTPUT);
     pinMode(output_head_moving_led, OUTPUT);
     pinMode(output_tail_moving_led, OUTPUT);
-}
-
-
-// Check if the turbo switch is currrently pressed
-bool turbo_engaged()
-{
-    if (digitalRead(input_turbo_activate_switch) == HIGH)
-        return true;
-    else
-        return false;
 }
 
 
@@ -460,8 +446,8 @@ void debug_print()
     Serial.print("Servo position: "); Serial.println(servo.read());
     Serial.print("Headstock limit switch: "); Serial.println(headstock.m_limit.is_hit());
     Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_limit.is_hit());
-    Serial.print("Moving towards headstock: "); Serial.println(headstock.is_moving_towards());
-    Serial.print("Moving towards tailstock: "); Serial.println(tailstock.is_moving_towards());
+    Serial.print("Moving towards headstock: "); Serial.println(headstock.m_direction_switch.is_hit());
+    Serial.print("Moving towards tailstock: "); Serial.println(tailstock.m_direction_switch.is_hit());
     Serial.print("\n\n");
 }
 
@@ -471,7 +457,7 @@ bool is_error()
 {
     debug_print();
     // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
-    if (headstock.is_moving_towards() && tailstock.is_moving_towards())
+    if (headstock.m_direction_switch.is_hit() && tailstock.m_direction_switch.is_hit)
     {
 #ifdef DEBUG_ON
         debug_print();
@@ -515,7 +501,7 @@ void loop()
     update_direction();
 
     // If turbo is currently held and motor is running
-    if (turbo_engaged() && motor_running)
+    if (turbo_switch.is_hit() && motor_running)
         // Gotta go fast
         move_servo_to_max();
     else
