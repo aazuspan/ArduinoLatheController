@@ -15,13 +15,15 @@
 
 
 // LED object structure to control limit and movement LEDs
-struct LED
+class LED
 {
+private:
     // Current LED state
     bool m_on = false;
     // Arduino pin
     int m_pin;
 
+public:
     // Object constructor with default values
     LED(int pin = 0) : m_pin(pin)
     {
@@ -70,11 +72,13 @@ struct LED
 
 
 // Switch object that keeps track of input pin and current status
-struct Switch
+class Switch
 {
+private:
     // Arduino input pin for the switch
     int m_pin;
 
+public:
     // Object constructor
     Switch(int pin=0)
         : m_pin(pin)
@@ -93,14 +97,16 @@ struct Switch
 
 
 // Limit switch sub-class to control headstock and tailstock limit switches
-struct LimitSwitch : public Switch
+class LimitSwitch : public Switch
 {
+private:
     // Switches haven't been checked until the check method is run
     bool checked = false;
 
     // LED indicator for this limit siwtch
     LED m_led;
 
+public:
     // Object constructor
     LimitSwitch(int pin, LED led=0)
         : Switch(pin), m_led(led)
@@ -180,17 +186,20 @@ struct LimitSwitch : public Switch
 
 
 // Direction object (headstock or tailstock) containing the relevant limit switch, LEDs, and direction pins 
-struct Direction
+class Direction
 {
-    LimitSwitch m_limit;
-    LED m_moving_led;
-    LED m_limit_led;
-    // Direction switch object that controls movement
-    Switch m_direction_switch;
+private:
     // Output pin to stepper driver direction
     int m_output_pin;
     // Value to pass to the stepper driver direction pin when moving
     DirectionValue m_value;
+
+public:
+    // Direction switch object that controls movement
+    Switch m_direction_switch;
+    LimitSwitch m_limit;
+    LED m_moving_led;
+    LED m_limit_led;
 
     // Object constructor
     Direction(LimitSwitch limit, LED moving_led, LED limit_led, Switch direction_switch, int output_pin, DirectionValue value)
@@ -272,6 +281,7 @@ enum DirectionValue
 {
     TO_TAIL = HIGH, TO_HEAD = LOW
 };
+
 
 // Enable values to pass to stepper driver enable pin
 const int MOTOR_ON = LOW;
