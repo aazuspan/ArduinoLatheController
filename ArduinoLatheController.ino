@@ -64,10 +64,9 @@ private:
     const byte m_MOTOR_ON = LOW;
     const byte m_MOTOR_OFF = HIGH;
     const byte m_enable_pin;
-
-public:
     bool m_running;
 
+public:
     // Object constructor
     Motor(byte enable_pin)
         : m_enable_pin(enable_pin), m_running(false)
@@ -94,6 +93,15 @@ public:
             digitalWrite(m_enable_pin, m_MOTOR_ON);
             m_running = true;
         }
+    }
+
+    // Check if the motor state is set to running
+    bool is_running()
+    {
+        if (m_running)
+            return true;
+        else
+            return false;
     }
 };
 
@@ -437,7 +445,7 @@ void update_direction()
         if (!tailstock.check(headstock))
         {
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
-            if (stepper.m_running)
+            if (stepper.is_running())
             {
                 // Stop
                 stepper.stop();
@@ -473,7 +481,7 @@ void update_servo()
 // Print debugging info to console if DEBUG is defined at beginning
 void debug_print()
 {
-    Serial.print("Motor running: "); Serial.println(stepper.m_running);
+    Serial.print("Motor running: "); Serial.println(stepper.is_running());
     Serial.print("Servo position: "); Serial.println(servo.read());
     Serial.print("Headstock limit switch: "); Serial.println(headstock.m_limit.is_hit());
     Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_limit.is_hit());
@@ -532,7 +540,7 @@ void loop()
     update_direction();
 
     // If turbo is currently held and motor is running
-    if (turbo_switch.is_hit() && stepper.m_running)
+    if (turbo_switch.is_hit() && stepper.is_running())
         // Gotta go fast
         move_servo_to_max();
     else
