@@ -245,22 +245,27 @@ struct Direction
 };
 
 
-// Input pin assignment
-const int input_speed_pot = A0;
-const int input_turbo_activate_switch = 11;
-const int input_head_direction_switch = 8;
-const int input_tail_direction_switch = 10;
-const int input_head_limit_switch = 12;
-const int input_tail_limit_switch = 13;
+// Pin assignment structure to store pin data
+namespace pins
+{
+    // Input pin assignment
+    const int input_speed_pot = A0;
+    const int input_turbo_activate_switch = 11;
+    const int input_head_direction_switch = 8;
+    const int input_tail_direction_switch = 10;
+    const int input_head_limit_switch = 12;
+    const int input_tail_limit_switch = 13;
 
-// Output pin assignment
-const int output_servo = 9;
-const int output_direction = 6;
-const int output_enable = 7;
-const int output_head_limit_led = 2;
-const int output_tail_limit_led = 4;
-const int output_head_moving_led = 3;
-const int output_tail_moving_led = 5;
+    // Output pin assignment
+    const int output_servo = 9;
+    const int output_direction = 6;
+    const int output_enable = 7;
+    const int output_head_limit_led = 2;
+    const int output_tail_limit_led = 4;
+    const int output_head_moving_led = 3;
+    const int output_tail_moving_led = 5;
+}
+
 
 // Direction values to pass to stepper driver direction pin
 enum DirectionValue
@@ -287,23 +292,23 @@ bool motor_running = false;
 Servo servo;
 
 // Create the LED objects
-LED head_limit_led(output_head_limit_led);
-LED tail_limit_led(output_tail_limit_led);
-LED head_moving_led(output_head_moving_led);
-LED tail_moving_led(output_tail_moving_led);
+LED head_limit_led(pins::output_head_limit_led);
+LED tail_limit_led(pins::output_tail_limit_led);
+LED head_moving_led(pins::output_head_moving_led);
+LED tail_moving_led(pins::output_tail_moving_led);
 
 // Create the turbo and direction switch objects
-Switch turbo_switch(input_turbo_activate_switch);
-Switch head_direction_switch(input_head_direction_switch);
-Switch tail_direction_switch(input_tail_direction_switch);
+Switch turbo_switch(pins::input_turbo_activate_switch);
+Switch head_direction_switch(pins::input_head_direction_switch);
+Switch tail_direction_switch(pins::input_tail_direction_switch);
 
 // Create the limit switch objects
-LimitSwitch head_limit_switch(input_head_limit_switch, head_limit_led);
-LimitSwitch tail_limit_switch(input_tail_limit_switch, tail_limit_led);
+LimitSwitch head_limit_switch(pins::input_head_limit_switch, head_limit_led);
+LimitSwitch tail_limit_switch(pins::input_tail_limit_switch, tail_limit_led);
 
 // Create the direction objects
-Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, output_direction, TO_HEAD);
-Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, output_direction, TO_TAIL);
+Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
+Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -316,7 +321,7 @@ void setup()
     set_pin_modes();
 
     // Attach servo to output servo pin
-    servo.attach(output_servo);
+    servo.attach(pins::output_servo);
 
     #ifdef DEBUG_ON
         Serial.begin(115200);
@@ -334,21 +339,21 @@ void setup()
 void set_pin_modes()
 {
     // Input pins
-    pinMode(input_speed_pot, INPUT);
-    pinMode(input_turbo_activate_switch, INPUT);
-    pinMode(input_head_direction_switch, INPUT);
-    pinMode(input_tail_direction_switch, INPUT);
-    pinMode(input_head_limit_switch, INPUT);
-    pinMode(input_tail_limit_switch, INPUT);
+    pinMode(pins::input_speed_pot, INPUT);
+    pinMode(pins::input_turbo_activate_switch, INPUT);
+    pinMode(pins::input_head_direction_switch, INPUT);
+    pinMode(pins::input_tail_direction_switch, INPUT);
+    pinMode(pins::input_head_limit_switch, INPUT);
+    pinMode(pins::input_tail_limit_switch, INPUT);
 
     // Output pins
-    pinMode(output_servo, OUTPUT);
-    pinMode(output_direction, OUTPUT);
-    pinMode(output_enable, OUTPUT);
-    pinMode(output_head_limit_led, OUTPUT);
-    pinMode(output_tail_limit_led, OUTPUT);
-    pinMode(output_head_moving_led, OUTPUT);
-    pinMode(output_tail_moving_led, OUTPUT);
+    pinMode(pins::output_servo, OUTPUT);
+    pinMode(pins::output_direction, OUTPUT);
+    pinMode(pins::output_enable, OUTPUT);
+    pinMode(pins::output_head_limit_led, OUTPUT);
+    pinMode(pins::output_tail_limit_led, OUTPUT);
+    pinMode(pins::output_head_moving_led, OUTPUT);
+    pinMode(pins::output_tail_moving_led, OUTPUT);
 }
 
 
@@ -356,7 +361,7 @@ void set_pin_modes()
 void stop_motor()
 {
     // Disable motor
-    digitalWrite(output_enable, MOTOR_OFF);
+    digitalWrite(pins::output_enable, MOTOR_OFF);
     motor_running = false;
 
     // Turn moving LEDs off
@@ -375,7 +380,7 @@ void run_motor()
             move_servo_to_start();
 
         // Once the servo reaches the maximum starting speed position, enable the motor
-        digitalWrite(output_enable, MOTOR_ON);
+        digitalWrite(pins::output_enable, MOTOR_ON);
         motor_running = true;
     }
 }
@@ -430,7 +435,7 @@ void update_direction()
 void update_servo()
 {
     // Read the input position from the pot
-    int input_position = analogRead(input_speed_pot);
+    int input_position = analogRead(pins::input_speed_pot);
 
     // Map the input range to the output range
     int output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
