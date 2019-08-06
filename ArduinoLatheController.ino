@@ -471,7 +471,7 @@ bool is_error()
 {
     debug_print();
     // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
-    if (headstock.m_direction_switch.is_hit() && tailstock.m_direction_switch.is_hit)
+    if (headstock.m_direction_switch.is_hit() && tailstock.m_direction_switch.is_hit())
     {
 #ifdef DEBUG_ON
         debug_print();
