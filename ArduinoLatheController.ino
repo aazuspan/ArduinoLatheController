@@ -14,6 +14,48 @@
 //#define IM_ AN_IDIOT
 
 
+// Create the servo object
+Servo servo;
+
+// Arduino pin assignments
+namespace pins
+{
+    // Input pin assignment
+    const byte input_speed_pot = A0;
+    const byte input_turbo_activate_switch = 11;
+    const byte input_head_direction_switch = 8;
+    const byte input_tail_direction_switch = 10;
+    const byte input_head_limit_switch = 12;
+    const byte input_tail_limit_switch = 13;
+
+    // Output pin assignment
+    const byte output_servo = 9;
+    const byte output_direction = 6;
+    const byte output_enable = 7;
+    const byte output_head_limit_led = 2;
+    const byte output_tail_limit_led = 4;
+    const byte output_head_moving_led = 3;
+    const byte output_tail_moving_led = 5;
+}
+
+// Constant variables
+namespace constants
+{
+    // Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
+    const byte SERVO_STARTING_SPEED = 100;
+    // Maximum position (speed) for the servo (use this to limit how far the speed control can be turned by the servo)
+    const byte SERVO_MAX_SPEED = 180;
+    // Minimum position (speed) for the servo 
+    const byte SERVO_MIN_SPEED = 1;
+}
+
+// Direction values to pass to stepper driver direction pin
+enum DirectionValue
+{
+    TO_TAIL = HIGH, TO_HEAD = LOW
+};
+
+
 // Stepper motor object to track state and control the leadscrew drive motor
 class Motor
 {
@@ -37,10 +79,6 @@ public:
         // Disable motor
         digitalWrite(m_enable_pin, m_MOTOR_OFF);
         m_running = false;
-
-        // Turn moving LEDs off
-        headstock.m_moving_led.turn_off();
-        tailstock.m_moving_led.turn_off();
     }
 
     // If motor isn't currently running, run it
@@ -49,7 +87,7 @@ public:
         if (!m_running)
         {
             // If the servo is set above the maximum starting speed position, set that speed before running
-            if (servo.read() > SERVO_STARTING_SPEED)
+            if (servo.read() > constants::SERVO_STARTING_SPEED)
                 move_servo_to_start();
 
             // Once the servo reaches the maximum starting speed position, enable the motor
@@ -58,6 +96,10 @@ public:
         }
     }
 };
+
+
+// Create the stepper motor object
+Motor stepper(pins::output_enable);
 
 
 // LED object structure to control limit and movement LEDs
@@ -300,49 +342,6 @@ public:
 };
 
 
-// Pin assignment structure to store pin data
-namespace pins
-{
-    // Input pin assignment
-    const byte input_speed_pot = A0;
-    const byte input_turbo_activate_switch = 11;
-    const byte input_head_direction_switch = 8;
-    const byte input_tail_direction_switch = 10;
-    const byte input_head_limit_switch = 12;
-    const byte input_tail_limit_switch = 13;
-
-    // Output pin assignment
-    const byte output_servo = 9;
-    const byte output_direction = 6;
-    const byte output_enable = 7;
-    const byte output_head_limit_led = 2;
-    const byte output_tail_limit_led = 4;
-    const byte output_head_moving_led = 3;
-    const byte output_tail_moving_led = 5;
-}
-
-
-// Direction values to pass to stepper driver direction pin
-enum DirectionValue
-{
-    TO_TAIL = HIGH, TO_HEAD = LOW
-};
-
-
-// Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
-const byte SERVO_STARTING_SPEED = 100;
-
-// Maximum position (speed) for the servo (use this to limit how far the speed control can be turned by the servo)
-const byte SERVO_MAX_SPEED = 180;
-// Minimum position (speed) for the servo 
-const byte SERVO_MIN_SPEED = 1;
-
-// Create the servo object
-Servo servo;
-
-// Create the stepper motor object
-Motor stepper(pins::output_enable);
-
 // Create the LED objects
 LED head_limit_led(pins::output_head_limit_led);
 LED tail_limit_led(pins::output_tail_limit_led);
@@ -413,7 +412,7 @@ void set_pin_modes()
 void move_servo_to_start()
 {
     // Move the servo to the maximum speed where it won't stall
-    servo.write(SERVO_STARTING_SPEED);
+    servo.write(constants::SERVO_STARTING_SPEED);
 
     // Wait for it to get there
     delay(500);
@@ -424,7 +423,7 @@ void move_servo_to_start()
 void move_servo_to_max()
 {
     // zoom zoom
-    servo.write(SERVO_MAX_SPEED);
+    servo.write(constants::SERVO_MAX_SPEED);
 }
 
 
@@ -439,8 +438,13 @@ void update_direction()
         {
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
             if (stepper.m_running)
+            {
                 // Stop
                 stepper.stop();
+                // Turn moving LEDs off
+                headstock.m_moving_led.turn_off();
+                tailstock.m_moving_led.turn_off();
+            }
 
             // Turn on/off the appropriate limit LEDs
             headstock.m_limit.update_led();
@@ -460,7 +464,7 @@ void update_servo()
     int input_position = analogRead(pins::input_speed_pot);
 
     // Map the input range to the output range
-    byte output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
+    byte output_position = map(input_position, 0, 1023, constants::SERVO_MIN_SPEED, constants::SERVO_MAX_SPEED);
     // Move the servo
     servo.write(output_position);
 }
