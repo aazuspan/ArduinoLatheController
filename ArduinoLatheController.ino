@@ -1,15 +1,18 @@
-// South Bend lathe leadscrew control firmware.
-// 
 /*
     Name:       ArduinoLatheController.ino
     Created:	7/29/2019 11:53:30 AM
     Author:     Aaron Zuspan
+    
+    Description: This firmware runs the control circuit of a lathe leadscrew motor. This firmware is responsible for 
+    interfacing input controls with output electronics. For thorough documentation, see the project repository at
+    https://github.com/aazuspan/ArduinoLatheController.
+                    
 */
 
 #include <Servo.h>
 
 
-//#define DEBUG_ON
+#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
 //#define IM_ AN_IDIOT
 
@@ -504,6 +507,7 @@ bool is_error()
 #endif 
         return true;
     }
+
 
     // We're moving, but we're not sure which direction
 //    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
