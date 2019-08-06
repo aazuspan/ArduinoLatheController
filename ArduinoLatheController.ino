@@ -11,7 +11,7 @@
 
 //#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
-//#define IM_AN_IDIOT
+//#define IM_ AN_IDIOT
 
 
 // LED object structure to control limit and movement LEDs
@@ -179,7 +179,7 @@ struct Direction
     // Output pin to stepper driver direction
     int output_pin;
     // Value to pass to the stepper driver direction pin when moving
-    int value;
+    DirectionValue value;
 
     // Object constructor
     Direction(LimitSwitch a, LED b, LED c, int d, int e, int f)
@@ -266,8 +266,10 @@ const int output_head_moving_led = 3;
 const int output_tail_moving_led = 5;
 
 // Direction values to pass to stepper driver direction pin
-const int TO_TAIL = HIGH;
-const int TO_HEAD = LOW;
+enum DirectionValue
+{
+    TO_TAIL = HIGH, TO_HEAD = LOW
+};
 
 // Enable values to pass to stepper driver enable pin
 const int MOTOR_ON = LOW;
@@ -308,20 +310,20 @@ void setup()
     // Begin with motor stopped
     stop_motor();
 
-    #ifdef DEBUG_ON
-    Serial.begin(115200);
-    #endif
-
     // Set input and output pin modes on Arduino
     set_pin_modes();
 
     // Attach servo to output servo pin
     servo.attach(output_servo);
 
+    #ifdef DEBUG_ON
+        Serial.begin(115200);
+    #endif
+
     #ifndef IM_AN_IDIOT
-    // Check that the limit switches are still connected correctly (unless you're an idiot)
-    head_limit_switch.check();
-    tail_limit_switch.check();
+        // Check that the limit switches are still connected correctly (unless you're an idiot)
+        headstock.limit.check();
+        tailstock.limit.check();
     #endif
 }
 
@@ -450,8 +452,8 @@ void debug_print()
 {
     Serial.print("Motor running: "); Serial.println(motor_running);
     Serial.print("Servo position: "); Serial.println(servo.read());
-    Serial.print("Headstock limit switch: "); Serial.println(head_limit_switch.is_hit());
-    Serial.print("Tailtock limit switch: "); Serial.println(tail_limit_switch.is_hit());
+    Serial.print("Headstock limit switch: "); Serial.println(headstock.limit.is_hit());
+    Serial.print("Tailtock limit switch: "); Serial.println(tailstock.limit.is_hit());
     Serial.print("Moving towards headstock: "); Serial.println(headstock.is_moving_towards());
     Serial.print("Moving towards tailstock: "); Serial.println(tailstock.is_moving_towards());
     Serial.print("\n\n");
