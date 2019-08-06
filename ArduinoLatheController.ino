@@ -21,11 +21,11 @@ private:
     // Current LED state
     bool m_on = false;
     // Arduino pin
-    int m_pin;
+    byte m_pin;
 
 public:
     // Object constructor with default values
-    LED(int pin = 0) : m_pin(pin)
+    LED(byte pin = 0) : m_pin(pin)
     {
     }
 
@@ -76,11 +76,11 @@ class Switch
 {
 private:
     // Arduino input pin for the switch
-    int m_pin;
+    byte m_pin;
 
 public:
     // Object constructor
-    Switch(int pin=0)
+    Switch(byte pin=0)
         : m_pin(pin)
     {
     }
@@ -190,7 +190,7 @@ class Direction
 {
 private:
     // Output pin to stepper driver direction
-    int m_output_pin;
+    byte m_output_pin;
     // Value to pass to the stepper driver direction pin when moving
     DirectionValue m_value;
 
@@ -258,21 +258,21 @@ public:
 namespace pins
 {
     // Input pin assignment
-    const int input_speed_pot = A0;
-    const int input_turbo_activate_switch = 11;
-    const int input_head_direction_switch = 8;
-    const int input_tail_direction_switch = 10;
-    const int input_head_limit_switch = 12;
-    const int input_tail_limit_switch = 13;
+    const byte input_speed_pot = A0;
+    const byte input_turbo_activate_switch = 11;
+    const byte input_head_direction_switch = 8;
+    const byte input_tail_direction_switch = 10;
+    const byte input_head_limit_switch = 12;
+    const byte input_tail_limit_switch = 13;
 
     // Output pin assignment
-    const int output_servo = 9;
-    const int output_direction = 6;
-    const int output_enable = 7;
-    const int output_head_limit_led = 2;
-    const int output_tail_limit_led = 4;
-    const int output_head_moving_led = 3;
-    const int output_tail_moving_led = 5;
+    const byte output_servo = 9;
+    const byte output_direction = 6;
+    const byte output_enable = 7;
+    const byte output_head_limit_led = 2;
+    const byte output_tail_limit_led = 4;
+    const byte output_head_moving_led = 3;
+    const byte output_tail_moving_led = 5;
 }
 
 
@@ -284,16 +284,16 @@ enum DirectionValue
 
 
 // Enable values to pass to stepper driver enable pin
-const int MOTOR_ON = LOW;
-const int MOTOR_OFF = HIGH;
+const byte MOTOR_ON = LOW;
+const byte MOTOR_OFF = HIGH;
 
 // Maximum starting position (speed) at which the stepper will reliably start from standstill  ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
-const int SERVO_STARTING_SPEED = 100;
+const byte SERVO_STARTING_SPEED = 100;
 
 // Maximum position (speed) for the servo (use this to limit how far the speed control can be turned by the servo)
-const int SERVO_MAX_SPEED = 180;
+const byte SERVO_MAX_SPEED = 180;
 // Minimum position (speed) for the servo 
-const int SERVO_MIN_SPEED = 1;
+const byte SERVO_MIN_SPEED = 1;
 
 // Is your motor running?
 bool motor_running = false;
@@ -412,7 +412,6 @@ void move_servo_to_max()
 {
     // zoom zoom
     servo.write(SERVO_MAX_SPEED);
-    delay(15);
 }
 
 
@@ -448,7 +447,7 @@ void update_servo()
     int input_position = analogRead(pins::input_speed_pot);
 
     // Map the input range to the output range
-    int output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
+    byte output_position = map(input_position, 0, 1023, SERVO_MIN_SPEED, SERVO_MAX_SPEED);
     // Move the servo
     servo.write(output_position);
 }
