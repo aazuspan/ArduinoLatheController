@@ -28,16 +28,16 @@ namespace pins
     const byte input_turbo_activate_switch = 11;
     const byte input_head_direction_switch = 8;
     const byte input_tail_direction_switch = 10;
-    const byte input_head_limit_switch = 12;
-    const byte input_tail_limit_switch = 13;
+    const byte input_head_limit_switch = 2;
+    const byte input_tail_limit_switch = 3;
 
     // Output pin assignment
     const byte output_servo = 9;
     const byte output_direction = 6;
     const byte output_enable = 7;
-    const byte output_head_limit_led = 2;
+    const byte output_head_limit_led = 12;
     const byte output_tail_limit_led = 4;
-    const byte output_head_moving_led = 3;
+    const byte output_head_moving_led = 13;
     const byte output_tail_moving_led = 5;
 }
 
@@ -394,8 +394,19 @@ void setup()
         headstock.m_limit.check();
         tailstock.m_limit.check();
     #endif
+
+        // Attach interrupt routine to the headstock limit switch (interrupt vector 0 = pin 2)
+        attachInterrupt(0, stopISR, RISING);
+        // Attach interrupt routine to the headstock limit switch (interrupt vector 1 = pin 3)
+        attachInterrupt(1, stopISR, RISING);
 }
 
+
+// Interrupt routine when a limit switch is hit
+void stopISR()
+{
+    stepper.stop();
+}
 
 // Set arduino pins to input / output at setup
 void set_pin_modes()
