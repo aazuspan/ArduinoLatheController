@@ -12,7 +12,7 @@
 #include <Servo.h>
 
 
-#define DEBUG_ON
+//#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
 //#define IM_ AN_IDIOT
 
@@ -55,7 +55,7 @@ namespace constants
 // Direction values to pass to stepper driver direction pin
 enum DirectionValue
 {
-    TO_TAIL = HIGH, TO_HEAD = LOW
+    TO_TAIL = LOW, TO_HEAD = HIGH
 };
 
 
