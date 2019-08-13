@@ -53,6 +53,12 @@ namespace constants
     const byte SERVO_MIN_SPEED = 1;
 }
 
+// Relay values to pass to the enable bypass relays
+enum BypassValue
+{
+    ON = LOW, OFF = HIGH
+};
+
 // Direction values to pass to stepper driver direction pin
 enum DirectionValue
 {
@@ -313,6 +319,8 @@ public:
         m_relay_output_pin(relay_output_pin),
         m_value(value)
     {
+        // Start be disabling the bypass relay
+        bypass_relay(OFF);
     }
 
     // Set the stepper driver towards this direction
@@ -321,38 +329,48 @@ public:
         digitalWrite(m_direction_output_pin, m_value);
     }
 
+    // Set the bypass relay state. When bypass is on, the relay bypasses the limit switch that disables the motor. This is used when moving away from a limit switch that is hit
+    void bypass_relay(BypassValue state)
+    {
+        // Set the relay bypass output to the correct state
+        digitalWrite(m_relay_output_pin, state);
+    }
+
     // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
     bool check(Direction other)
     {
         // If this direction switch is engaged
         if (m_direction_switch.is_hit())
         {
-            // If the limit is reached
+            // If this limit is reached, update LEDs
             if (m_limit.is_hit())
             {
-                // Don't crash
-                stepper.stop();
                 // Turn the moving LED off
                 m_moving_led.turn_off();
                 // Flash the warning LED
                 m_limit_led.flash(100);
             }
 
+            // If the opposite limit is hit
+            else if (other.m_limit.is_hit())
+            {
+                // Bypass the limit switch to enable the stepper to run away from that limit
+                bypass_relay(ON);
+            }
+
             // If the limit hasn't been reached
             else
             {
+                // Disable the bypass relay to allow the limit switch to disable the motor when hit
+                bypass_relay(OFF);
                 // Set the stepper driver direction
                 set_direction();
                 // Turn on the moving LED
                 m_moving_led.turn_on();
                 // Turn off the limit LED in case it was still on
                 m_limit_led.turn_off();
-                // Go!
-                stepper.run();
-
-                // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
-                if (!other.m_limit.is_hit())
-                    other.m_limit_led.turn_off();
+                // Since the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
+                other.m_limit_led.turn_off();
             }
             return true;
         }
