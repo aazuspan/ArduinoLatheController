@@ -28,15 +28,16 @@ namespace pins
     const byte input_turbo_activate_switch = 11;
     const byte input_head_direction_switch = 8;
     const byte input_tail_direction_switch = 10;
-    const byte input_head_limit_switch = 12;
-    const byte input_tail_limit_switch = 13;
+    const byte input_head_limit_switch = 2;
+    const byte input_tail_limit_switch = 3;
 
     // Output pin assignment
     const byte output_servo = 9;
     const byte output_direction = 6;
-    const byte output_enable = 7;
-    const byte output_head_limit_led = 2;
-    const byte output_tail_limit_led = 4;
+    const byte output_tail_relay = 7;
+    const byte output_head_relay = A1;
+    const byte output_head_limit_led = 12;
+    const byte output_tail_limit_led = 14;
     const byte output_head_moving_led = 3;
     const byte output_tail_moving_led = 5;
 }
@@ -289,7 +290,9 @@ class Direction
 {
 private:
     // Output pin to stepper driver direction
-    byte m_output_pin;
+    byte m_direction_output_pin;
+    // Output pin to enable bypass relay
+    byte m_relay_output_pin;
     // Value to pass to the stepper driver direction pin when moving
     DirectionValue m_value;
 
@@ -301,15 +304,21 @@ public:
     LED m_limit_led;
 
     // Object constructor
-    Direction(LimitSwitch limit, LED moving_led, LED limit_led, Switch direction_switch, int output_pin, DirectionValue value)
-        : m_limit(limit), m_moving_led(moving_led), m_limit_led(limit_led), m_direction_switch(direction_switch), m_output_pin(output_pin), m_value(value)
+    Direction(LimitSwitch limit, LED moving_led, LED limit_led, Switch direction_switch, int direction_output_pin, int relay_output_pin, DirectionValue value)
+        : m_limit(limit), 
+        m_moving_led(moving_led), 
+        m_limit_led(limit_led), 
+        m_direction_switch(direction_switch), 
+        m_direction_output_pin(direction_output_pin), 
+        m_relay_output_pin(relay_output_pin),
+        m_value(value)
     {
     }
 
     // Set the stepper driver towards this direction
     void set_direction()
     {
-        digitalWrite(m_output_pin, m_value);
+        digitalWrite(m_direction_output_pin, m_value);
     }
 
     // Check a direction switch and move that direction if limits aren't hit. Return true if that direction switch is enabled.
@@ -369,8 +378,8 @@ LimitSwitch head_limit_switch(pins::input_head_limit_switch, head_limit_led);
 LimitSwitch tail_limit_switch(pins::input_tail_limit_switch, tail_limit_led);
 
 // Create the direction objects
-Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
-Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
+Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, pins::output_head_relay, TO_HEAD);
+Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, pins::output_tail_relay, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -411,7 +420,8 @@ void set_pin_modes()
     // Output pins
     pinMode(pins::output_servo, OUTPUT);
     pinMode(pins::output_direction, OUTPUT);
-    pinMode(pins::output_enable, OUTPUT);
+    pinMode(pins::output_head_relay, OUTPUT);
+    pinMode(pins::output_tail_relay, OUTPUT);
     pinMode(pins::output_head_limit_led, OUTPUT);
     pinMode(pins::output_tail_limit_led, OUTPUT);
     pinMode(pins::output_head_moving_led, OUTPUT);
