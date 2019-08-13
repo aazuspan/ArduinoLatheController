@@ -14,7 +14,7 @@
 
 //#define DEBUG_ON
 // Uncomment this define to ignore all the safety checks I carefully wrote (you idiot)
-//#define IM_ AN_IDIOT
+//#define IM_AN_IDIOT
 
 
 // Create the servo object
@@ -30,6 +30,10 @@ namespace pins
     const byte input_tail_direction_switch = 10;
     const byte input_head_limit_switch = 2;
     const byte input_tail_limit_switch = 3;
+
+    // Interrupt vectors
+    const byte input_head_limit_interrupt = 0;
+    const byte input_tail_limit_interrupt = 1;
 
     // Output pin assignment
     const byte output_servo = 9;
@@ -83,7 +87,7 @@ public:
         m_running = false;
     }
 
-    // If motor isn't currently running, run it
+    // Run the motor, accelerating from the maximum starting speed if necessary
     void run()
     {
         if (!m_running)
@@ -91,11 +95,12 @@ public:
             // If the servo is set above the maximum starting speed position, set that speed before running
             if (servo.read() > constants::SERVO_STARTING_SPEED)
                 move_servo_to_start();
-
-            // Once the servo reaches the maximum starting speed position, enable the motor
-            digitalWrite(m_enable_pin, m_MOTOR_ON);
-            m_running = true;
         }
+
+        // Once the servo reaches the maximum starting speed position, enable the motor
+        digitalWrite(m_enable_pin, m_MOTOR_ON);
+        m_running = true;
+
     }
 
     // Check if the motor state is set to running
@@ -318,10 +323,10 @@ public:
         // If this direction switch is engaged
         if (m_direction_switch.is_hit())
         {
-            // If the limit is reached
+            // If the limit is reached (Hardware interrupt will stop the motor)
             if (m_limit.is_hit())
             {
-                // Don't crash
+                // Make sure the stepper stays stopped
                 stepper.stop();
                 // Turn the moving LED off
                 m_moving_led.turn_off();
@@ -395,18 +400,23 @@ void setup()
         tailstock.m_limit.check();
     #endif
 
-        // Attach interrupt routine to the headstock limit switch (interrupt vector 0 = pin 2)
-        attachInterrupt(0, stopISR, RISING);
-        // Attach interrupt routine to the headstock limit switch (interrupt vector 1 = pin 3)
-        attachInterrupt(1, stopISR, RISING);
+        // Run the limit_hit interrupt routine when either limit switch goes high
+        attachInterrupt(pins::input_head_limit_interrupt , limit_hit_ISR, RISING);
+        attachInterrupt(pins::input_tail_limit_interrupt, limit_hit_ISR, RISING);
 }
 
 
-// Interrupt routine when a limit switch is hit
-void stopISR()
+// When either limit is hit, immediately disable the motor and then go back to checking switch states
+void limit_hit_ISR()
 {
-    stepper.stop();
+    digitalWrite(pins::output_enable, HIGH);
+
+    //if ((headstock.m_direction_switch.is_hit() && headstock.m_limit.is_hit()) || 
+    //    (tailstock.m_direction_switch.is_hit() && tailstock.m_limit.is_hit()))
+    //    // Disable the motor
+    //    digitalWrite(pins::output_enable, HIGH);
 }
+
 
 // Set arduino pins to input / output at setup
 void set_pin_modes()
