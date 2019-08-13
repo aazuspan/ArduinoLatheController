@@ -117,7 +117,7 @@ public:
 
 
 // Create the stepper motor object
-Motor stepper(pins::output_enable);
+Motor stepper(0);
 
 
 // LED object structure to control limit and movement LEDs
@@ -345,6 +345,7 @@ public:
             // If this limit is reached, update LEDs
             if (m_limit.is_hit())
             {
+                stepper.is_running = false;
                 // Turn the moving LED off
                 m_moving_led.turn_off();
                 // Flash the warning LED
@@ -356,11 +357,13 @@ public:
             {
                 // Bypass the limit switch to enable the stepper to run away from that limit
                 bypass_relay(ON);
+                stepper.is_running = true;
             }
 
             // If the limit hasn't been reached
             else
             {
+                stepper.is_running = true;
                 // Disable the bypass relay to allow the limit switch to disable the motor when hit
                 bypass_relay(OFF);
                 // Set the stepper driver direction
@@ -478,8 +481,7 @@ void update_direction()
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
             if (stepper.is_running())
             {
-                // Stop
-                stepper.stop();
+                stepper.is_running = false;
                 // Turn moving LEDs off
                 headstock.m_moving_led.turn_off();
                 tailstock.m_moving_led.turn_off();
