@@ -34,6 +34,7 @@ namespace pins
     // Output pin assignment
     const byte output_servo = 9;
     const byte output_direction = 6;
+    const byte output_enable = A3;
     const byte output_tail_relay = 7;
     const byte output_head_relay = A1;
     const byte output_head_limit_led = 12;
@@ -52,6 +53,12 @@ namespace constants
     // Minimum position (speed) for the servo 
     const byte SERVO_MIN_SPEED = 1;
 }
+
+// Enable value to enable bypass relay. When output is HIGH, relay is triggered, sending 5v to enable, disabling the stepper
+enum EnableValue
+{
+    GO = LOW, STOP = HIGH
+};
 
 // Relay values to pass to the enable bypass relays
 enum BypassValue
@@ -74,19 +81,23 @@ private:
     const byte m_MOTOR_ON = LOW;
     const byte m_MOTOR_OFF = HIGH;
     const byte m_enable_pin;
-    bool m_running;
 
 public:
+    bool m_running;
+
     // Object constructor
     Motor(byte enable_pin)
         : m_enable_pin(enable_pin), m_running(false)
-    {}
+    {
+        // Disable the motor
+        set_enable_relay(STOP);
+    }
 
     // Stop the motor
     void stop()
     {
         // Disable motor
-        digitalWrite(m_enable_pin, m_MOTOR_OFF);
+        set_enable_relay(STOP);
         m_running = false;
     }
 
@@ -113,11 +124,18 @@ public:
         else
             return false;
     }
+
+    // Set the enable relay state. When the relay is on, 5V will be cut off from the enable pin, allowing the motor to move. This is used to stop the motor when direction switch is in middle position.
+    void set_enable_relay(EnableValue state)
+    {
+        // Set the enable relay output to the correct state
+        digitalWrite(m_enable_pin, state);
+    }
 };
 
 
 // Create the stepper motor object
-Motor stepper(0);
+Motor stepper(pins::output_enable);
 
 
 // LED object structure to control limit and movement LEDs
@@ -299,6 +317,8 @@ private:
     byte m_direction_output_pin;
     // Output pin to enable bypass relay
     byte m_relay_output_pin;
+    // Output pin to enable relay to stop motor when limit switches aren't hit
+    byte m_enable_pin;
     // Value to pass to the stepper driver direction pin when moving
     DirectionValue m_value;
 
@@ -320,7 +340,7 @@ public:
         m_value(value)
     {
         // Start be disabling the bypass relay
-        bypass_relay(OFF);
+        set_bypass_relay(OFF);
     }
 
     // Set the stepper driver towards this direction
@@ -330,7 +350,7 @@ public:
     }
 
     // Set the bypass relay state. When bypass is on, the relay bypasses the limit switch that disables the motor. This is used when moving away from a limit switch that is hit
-    void bypass_relay(BypassValue state)
+    void set_bypass_relay(BypassValue state)
     {
         // Set the relay bypass output to the correct state
         digitalWrite(m_relay_output_pin, state);
@@ -345,7 +365,7 @@ public:
             // If this limit is reached, update LEDs
             if (m_limit.is_hit())
             {
-                stepper.is_running = false;
+                stepper.m_running = false;
                 // Turn the moving LED off
                 m_moving_led.turn_off();
                 // Flash the warning LED
@@ -356,16 +376,16 @@ public:
             else if (other.m_limit.is_hit())
             {
                 // Bypass the limit switch to enable the stepper to run away from that limit
-                bypass_relay(ON);
-                stepper.is_running = true;
+                set_bypass_relay(ON);
+                stepper.m_running = true;
             }
 
             // If the limit hasn't been reached
             else
             {
-                stepper.is_running = true;
+                stepper.m_running = true;
                 // Disable the bypass relay to allow the limit switch to disable the motor when hit
-                bypass_relay(OFF);
+                set_bypass_relay(OFF);
                 // Set the stepper driver direction
                 set_direction();
                 // Turn on the moving LED
@@ -441,6 +461,7 @@ void set_pin_modes()
     // Output pins
     pinMode(pins::output_servo, OUTPUT);
     pinMode(pins::output_direction, OUTPUT);
+    pinMode(pins::output_enable, OUTPUT);
     pinMode(pins::output_head_relay, OUTPUT);
     pinMode(pins::output_tail_relay, OUTPUT);
     pinMode(pins::output_head_limit_led, OUTPUT);
@@ -475,13 +496,19 @@ void update_direction()
     // Check if we should move towards headstock and do it
     if (!headstock.check(tailstock))
     {
+        // Set the enable relay to allow the motor to go
+        stepper.set_enable_relay(GO);
+
         // If we didn't, check if we should move towards tailstock and do it
         if (!tailstock.check(headstock))
         {
             // If we didn't move towards headstock or tailstock, direction switch must be in middle position
             if (stepper.is_running())
             {
-                stepper.is_running = false;
+                // Set the enable relay to stop the motor
+                stepper.set_enable_relay(STOP);
+                stepper.m_running = false;
+
                 // Turn moving LEDs off
                 headstock.m_moving_led.turn_off();
                 tailstock.m_moving_led.turn_off();
@@ -492,6 +519,10 @@ void update_direction()
             tailstock.m_limit.update_led();
         }
     }
+    // Headstock switch is set
+    else
+        // Set the enable relay to allow the motor to go
+        stepper.set_enable_relay(GO);
 
 
 
