@@ -30,16 +30,17 @@ namespace pins
     const byte input_tail_direction_switch = 10;
     const byte input_head_limit_switch = 2;
     const byte input_tail_limit_switch = 3;
+    const byte input_enable = A5;
 
     // Output pin assignment
     const byte output_servo = 9;
     const byte output_direction = 6;
     const byte output_enable = A3;
-    const byte output_tail_relay = 7;
-    const byte output_head_relay = A1;
+    const byte output_tail_relay = A1;
+    const byte output_head_relay = 7;
     const byte output_head_limit_led = 12;
-    const byte output_tail_limit_led = 14;
-    const byte output_head_moving_led = 3;
+    const byte output_tail_limit_led = 4;
+    const byte output_head_moving_led = 13;
     const byte output_tail_moving_led = 5;
 }
 
@@ -80,14 +81,15 @@ private:
     // Enable values to pass to stepper driver enable pin
     const byte m_MOTOR_ON = LOW;
     const byte m_MOTOR_OFF = HIGH;
-    const byte m_enable_pin;
+    const byte m_enable_output;
+    const byte m_enable_input;
 
 public:
     bool m_running;
 
     // Object constructor
-    Motor(byte enable_pin)
-        : m_enable_pin(enable_pin), m_running(false)
+    Motor(byte output_enable, byte input_enable)
+        : m_enable_output(output_enable), m_enable_input(input_enable), m_running(false)
     {
         // Disable the motor
         set_enable_relay(STOP);
@@ -104,38 +106,36 @@ public:
     // If motor isn't currently running, run it
     void run()
     {
-        if (!m_running)
-        {
-            // If the servo is set above the maximum starting speed position, set that speed before running
-            if (servo.read() > constants::SERVO_STARTING_SPEED)
-                move_servo_to_start();
+        // If the servo is set above the maximum starting speed position, set that speed before running
+        //if (servo.read() > constants::SERVO_STARTING_SPEED)
+        //    move_servo_to_start();
 
-            // Once the servo reaches the maximum starting speed position, enable the motor
-            digitalWrite(m_enable_pin, m_MOTOR_ON);
-            m_running = true;
-        }
+        // Once the servo reaches the maximum starting speed position, enable the motor
+        set_enable_relay(GO);
+        m_running = true;
     }
 
-    // Check if the motor state is set to running
+    // Check if the stepper driver is enabled, which would mean the motor is running
     bool is_running()
     {
-        if (m_running)
+        if (digitalRead(m_enable_input) == LOW)
             return true;
         else
             return false;
     }
 
+private:
     // Set the enable relay state. When the relay is on, 5V will be cut off from the enable pin, allowing the motor to move. This is used to stop the motor when direction switch is in middle position.
     void set_enable_relay(EnableValue state)
     {
         // Set the enable relay output to the correct state
-        digitalWrite(m_enable_pin, state);
+        digitalWrite(m_enable_output, state);
     }
 };
 
 
 // Create the stepper motor object
-Motor stepper(pins::output_enable);
+Motor stepper(pins::output_enable, pins::input_enable);
 
 
 // LED object structure to control limit and movement LEDs
@@ -496,9 +496,6 @@ void update_direction()
     // Check if we should move towards headstock and do it
     if (!headstock.check(tailstock))
     {
-        // Set the enable relay to allow the motor to go
-        stepper.set_enable_relay(GO);
-
         // If we didn't, check if we should move towards tailstock and do it
         if (!tailstock.check(headstock))
         {
@@ -506,8 +503,7 @@ void update_direction()
             if (stepper.is_running())
             {
                 // Set the enable relay to stop the motor
-                stepper.set_enable_relay(STOP);
-                stepper.m_running = false;
+                stepper.stop();
 
                 // Turn moving LEDs off
                 headstock.m_moving_led.turn_off();
@@ -518,14 +514,19 @@ void update_direction()
             headstock.m_limit.update_led();
             tailstock.m_limit.update_led();
         }
+        // Tailstock switch is set
+        else
+        {
+            // Set the enable relay to allow the motor to go
+            stepper.run();
+        }
     }
     // Headstock switch is set
     else
+    {
         // Set the enable relay to allow the motor to go
-        stepper.set_enable_relay(GO);
-
-
-
+        stepper.run();
+    }
 }
 
 
