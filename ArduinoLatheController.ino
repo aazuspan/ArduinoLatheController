@@ -28,16 +28,17 @@ namespace pins
     const byte input_turbo_activate_switch = 11;
     const byte input_head_direction_switch = 8;
     const byte input_tail_direction_switch = 10;
-    const byte input_head_limit_switch = 12;
-    const byte input_tail_limit_switch = 13;
+    const byte input_head_limit_switch = 2;
+    const byte input_tail_limit_switch = 3;
 
     // Output pin assignment
+    const byte pulse_relay = A3;
     const byte output_servo = 9;
     const byte output_direction = 6;
-    const byte output_enable = 7;
-    const byte output_head_limit_led = 2;
+    const byte output_enable = A5;
+    const byte output_head_limit_led = 12;
+    const byte output_head_moving_led = 13;
     const byte output_tail_limit_led = 4;
-    const byte output_head_moving_led = 3;
     const byte output_tail_moving_led = 5;
 }
 
