@@ -378,7 +378,10 @@ public:
                 // Bypass the limit switch to enable the stepper to run away from that limit
                 set_bypass_relay(ON);
                 stepper.m_running = true;
+                m_moving_led.turn_on();
+                set_direction();
             }
+
 
             // If the limit hasn't been reached
             else
@@ -412,6 +415,7 @@ LED tail_moving_led(pins::output_tail_moving_led);
 // Create the turbo and direction switch objects
 Switch turbo_switch(pins::input_turbo_activate_switch);
 Switch head_direction_switch(pins::input_head_direction_switch);
+
 Switch tail_direction_switch(pins::input_tail_direction_switch);
 
 // Create the limit switch objects
