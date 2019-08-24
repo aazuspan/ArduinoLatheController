@@ -298,13 +298,20 @@ private:
 public:
     // Direction switch object that controls movement
     Switch m_direction_switch;
-    LimitSwitch m_limit;
+    LimitSwitch m_stop_limit;
+    LimitSwitch m_slow_limit;
     LED m_moving_led;
     LED m_limit_led;
 
     // Object constructor
-    Direction(LimitSwitch limit, LED moving_led, LED limit_led, Switch direction_switch, int output_pin, DirectionValue value)
-        : m_limit(limit), m_moving_led(moving_led), m_limit_led(limit_led), m_direction_switch(direction_switch), m_output_pin(output_pin), m_value(value)
+    Direction(LimitSwitch stop_limit, LimitSwitch slow_limit, LED moving_led, LED limit_led, Switch direction_switch, int output_pin, DirectionValue value)
+        : m_stop_limit(stop_limit),
+        m_slow_limit(slow_limit),
+        m_moving_led(moving_led), 
+        m_limit_led(limit_led), 
+        m_direction_switch(direction_switch), 
+        m_output_pin(output_pin), 
+        m_value(value)
     {
     }
 
@@ -321,7 +328,7 @@ public:
         if (m_direction_switch.is_hit())
         {
             // If the limit is reached
-            if (m_limit.is_hit())
+            if (m_stop_limit.is_hit())
             {
                 // Don't crash
                 stepper.stop();
@@ -344,7 +351,7 @@ public:
                 stepper.run();
 
                 // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
-                if (!other.m_limit.is_hit())
+                if (!other.m_stop_limit.is_hit())
                     other.m_limit_led.turn_off();
             }
             return true;
@@ -369,10 +376,12 @@ Switch tail_direction_switch(pins::input_tail_direction_switch);
 // Create the limit switch objects
 LimitSwitch head_stop_limit_switch(pins::input_head_stop_limit_switch, head_limit_led);
 LimitSwitch tail_stop_limit_switch(pins::input_tail_stop_limit_switch, tail_limit_led);
+LimitSwitch head_slow_limit_switch(pins::input_head_slow_limit_switch, head_limit_led);
+LimitSwitch tail_slow_limit_switch(pins::input_tail_slow_limit_switch, tail_limit_led);
 
 // Create the direction objects
-Direction headstock(head_stop_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
-Direction tailstock(tail_stop_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
+Direction headstock(head_stop_limit_switch, head_slow_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
+Direction tailstock(tail_stop_limit_switch, tail_slow_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -393,8 +402,8 @@ void setup()
 
     #ifndef IM_AN_IDIOT
         // Check that the limit switches are still connected correctly (unless you're an idiot)
-        headstock.m_limit.check();
-        tailstock.m_limit.check();
+        headstock.m_stop_limit.check();
+        tailstock.m_stop_limit.check();
     #endif
 }
 
@@ -462,13 +471,10 @@ void update_direction()
             }
 
             // Turn on/off the appropriate limit LEDs
-            headstock.m_limit.update_led();
-            tailstock.m_limit.update_led();
+            headstock.m_stop_limit.update_led();
+            tailstock.m_stop_limit.update_led();
         }
     }
-
-
-
 }
 
 
@@ -490,8 +496,8 @@ void debug_print()
 {
     Serial.print("Motor running: "); Serial.println(stepper.is_running());
     Serial.print("Servo position: "); Serial.println(servo.read());
-    Serial.print("Headstock limit switch: "); Serial.println(headstock.m_limit.is_hit());
-    Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_limit.is_hit());
+    Serial.print("Headstock limit switch: "); Serial.println(headstock.m_stop_limit.is_hit());
+    Serial.print("Tailtock limit switch: "); Serial.println(tailstock.m_stop_limit.is_hit());
     Serial.print("Moving towards headstock: "); Serial.println(headstock.m_direction_switch.is_hit());
     Serial.print("Moving towards tailstock: "); Serial.println(tailstock.m_direction_switch.is_hit());
     Serial.print("\n\n");
