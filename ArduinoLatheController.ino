@@ -52,6 +52,8 @@ namespace constants
     const byte SERVO_MAX_SPEED = 180;
     // Minimum position (speed) for the servo 
     const byte SERVO_MIN_SPEED = 1;
+    // Slow speed activated before hitting the stop limit to ensure consistent stop point ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
+    const byte SERVO_SLOW_SPEED = 50;
 }
 
 // Direction values to pass to stepper driver direction pin
@@ -69,12 +71,14 @@ private:
     const byte m_MOTOR_ON = LOW;
     const byte m_MOTOR_OFF = HIGH;
     const byte m_enable_pin;
+    // Slow mode is engaged between hitting the slow limit and hitting the stop limit to ensure constant speed when stop is hit
+    bool m_slow_mode;
     bool m_running;
 
 public:
     // Object constructor
     Motor(byte enable_pin)
-        : m_enable_pin(enable_pin), m_running(false)
+        : m_enable_pin(enable_pin), m_slow_mode(false), m_running(false)
     {}
 
     // Stop the motor
@@ -98,6 +102,21 @@ public:
             digitalWrite(m_enable_pin, m_MOTOR_ON);
             m_running = true;
         }
+    }
+
+    // Setter for slow mode
+    void set_slow_mode(bool state)
+    {
+        m_slow_mode = state;
+    }
+
+    // Getter for slow mode
+    bool is_slow_mode()
+    {
+        if (m_slow_mode)
+            return true;
+        else
+            return false;
     }
 
     // Check if the motor state is set to running
@@ -450,6 +469,12 @@ void move_servo_to_max()
     servo.write(constants::SERVO_MAX_SPEED);
 }
 
+// Move servo to the fixed slow speed before hitting the stop limit
+void move_servo_to_slow()
+{
+    servo.write(constants::SERVO_SLOW_SPEED);
+}
+
 
 // Check direction switch position and move accordingly if limits aren't hit
 void update_direction()
@@ -552,13 +577,24 @@ void loop()
     // Check direction switch and move if it's set and limits are clear
     update_direction();
 
-    // If turbo is currently held and motor is running
-    if (turbo_switch.is_hit() && stepper.is_running())
-        // Gotta go fast
-        move_servo_to_max();
+    // If the stepper isn't in slow mode (slow limit isn't hit)
+    if (!stepper.is_slow_mode)
+    {
+        // If turbo is currently held and motor is running
+        if (turbo_switch.is_hit() && stepper.is_running())
+            // Gotta go fast
+            move_servo_to_max();
+        else
+            // Update the servo position to the speed pot 
+            update_servo();
+    }
+    // If stepper is in slow mode (slow limit is hit but stop limit isn't yet)
     else
-        // Update the servo position to the speed pot 
-        update_servo();
+    {
+        // Run at slow, fixed speed, ignoring speed pot
+        move_servo_to_slow();
+    }
+
 
     #ifndef IM_AN_IDIOT
     // Unless you're an idiot (defined at top of script), check for possible bugs and errors
