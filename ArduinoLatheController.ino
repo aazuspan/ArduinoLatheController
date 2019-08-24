@@ -28,11 +28,12 @@ namespace pins
     const byte input_turbo_activate_switch = 11;
     const byte input_head_direction_switch = 8;
     const byte input_tail_direction_switch = 10;
-    const byte input_head_limit_switch = 2;
-    const byte input_tail_limit_switch = 3;
+    const byte input_head_slow_limit_switch = A1;
+    const byte input_tail_slow_limit_switch = A3;
+    const byte input_head_stop_limit_switch = 2;
+    const byte input_tail_stop_limit_switch = 3;
 
     // Output pin assignment
-    const byte pulse_relay = A3;
     const byte output_servo = 9;
     const byte output_direction = 6;
     const byte output_enable = A5;
@@ -366,12 +367,12 @@ Switch head_direction_switch(pins::input_head_direction_switch);
 Switch tail_direction_switch(pins::input_tail_direction_switch);
 
 // Create the limit switch objects
-LimitSwitch head_limit_switch(pins::input_head_limit_switch, head_limit_led);
-LimitSwitch tail_limit_switch(pins::input_tail_limit_switch, tail_limit_led);
+LimitSwitch head_stop_limit_switch(pins::input_head_stop_limit_switch, head_limit_led);
+LimitSwitch tail_stop_limit_switch(pins::input_tail_stop_limit_switch, tail_limit_led);
 
 // Create the direction objects
-Direction headstock(head_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
-Direction tailstock(tail_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
+Direction headstock(head_stop_limit_switch, head_moving_led, head_limit_led, head_direction_switch, pins::output_direction, TO_HEAD);
+Direction tailstock(tail_stop_limit_switch, tail_moving_led, tail_limit_led, tail_direction_switch, pins::output_direction, TO_TAIL);
 
 
 // The setup() function runs once each time the micro-controller starts
@@ -406,8 +407,10 @@ void set_pin_modes()
     pinMode(pins::input_turbo_activate_switch, INPUT);
     pinMode(pins::input_head_direction_switch, INPUT);
     pinMode(pins::input_tail_direction_switch, INPUT);
-    pinMode(pins::input_head_limit_switch, INPUT);
-    pinMode(pins::input_tail_limit_switch, INPUT);
+    pinMode(pins::input_head_stop_limit_switch, INPUT);
+    pinMode(pins::input_tail_stop_limit_switch, INPUT);
+    pinMode(pins::input_head_slow_limit_switch, INPUT);
+    pinMode(pins::input_tail_slow_limit_switch, INPUT);
 
     // Output pins
     pinMode(pins::output_servo, OUTPUT);
