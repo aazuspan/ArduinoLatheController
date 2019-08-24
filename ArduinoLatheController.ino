@@ -296,7 +296,7 @@ public:
 };
 
 
-// Direction object (headstock or tailstock) containing the relevant limit switch, LEDs, and direction pins 
+// Direction object (headstock or tailstock) containing the relevant limit switches, LEDs, and direction pins 
 class Direction
 {
 private:
@@ -355,6 +355,8 @@ public:
                 m_moving_led.turn_off();
                 // Flash the warning LED
                 m_limit_led.flash(100);
+                // We've hit the stop limit, so we're not in slow mode anymore
+                stepper.set_slow_mode(false);
             }
 
             // If the limit hasn't been reached
@@ -372,6 +374,11 @@ public:
                 // If the opposite limit isn't hit, turn that LED off (for example, when moving off of that limit switch)
                 if (!other.m_stop_limit.is_hit())
                     other.m_limit_led.turn_off();
+
+                // If the slow limit has been hit but the stop limit hasn't been
+                if (m_slow_limit.is_hit())
+                    // Engage slow mode
+                    stepper.set_slow_mode(true);
             }
             return true;
         }
