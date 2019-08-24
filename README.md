@@ -34,11 +34,12 @@ An Arduino-based stepper motor control with servo speed adjustment to run a lath
     to that direction is hit, the motor will not be allowed to move in that direction. If the direction switch is set to 
     the middle position, it will stop.
 
-    Limit switches: Two limit switches (headstock and tailstock) feed digital inputs to the Arduino. When they are hit,
-    the stepper motor will be unable to move in that direction, to avoid crashing the carriage into the limit switch.
-    Because the limit switches are safety critical, they have a check method that runs on system startup. This check
-    requires the operator to hold each limit switch until they are registered, and ensures that the limit switches and 
-    their wiring have not been damaged in a way that would cause them to fail during operation.
+    Limit switches: A total of four optical limit switches feed digital inputs to the Arduino. At the tailstock and headstock, 
+    a pair of optical limit switches mounted adjacently act to slow the stepper motor to a fixed speed and then stop it. The 
+    slowdown limit switch is used to ensure that the stepper motor is always running at the same speed when the stop limit is 
+    hit. This guarantees that stop points are repeatable within less than one thousandth of an inch. After testing a number of
+    alternate solutions, it was determined that repeatability was not achievable without running the motor at a constant speed
+    due to inertia. 
 
     Turbo: If the motor is running, the turbo switch will set the servo speed to maximum regardless of speed control
     position. This is also subject to speed governing.
