@@ -53,7 +53,7 @@ namespace constants
     // Minimum position (speed) for the servo 
     const byte SERVO_MIN_SPEED = 1;
     // Slow speed activated before hitting the stop limit to ensure consistent stop point ***NOTE, NEED TO DETERMINE THE CORRECT VALUE ****
-    const byte SERVO_SLOW_SPEED = 50;
+    const byte SERVO_SLOW_SPEED = 120;
 }
 
 // Direction values to pass to stepper driver direction pin
