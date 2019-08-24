@@ -214,15 +214,6 @@ public:
     {
     }
 
-    // Turn the limit LED on or off based on switch state
-    void update_led()
-    {
-        if (is_hit())
-            m_led.turn_on();
-        else
-            m_led.turn_off();
-    }
-
     // Test if the limit switch works by flashing the LED and having the operator hold the limit. If the switch doesn't work, the program will get stuck in this loop
     void check()
     {
@@ -313,6 +304,15 @@ public:
         m_output_pin(output_pin), 
         m_value(value)
     {
+    }
+
+    // Turn the limit LED on or off based on switch state
+    void update_limit_led()
+    {
+        if (m_stop_limit.is_hit())
+            m_limit_led.turn_on();
+        else
+            m_limit_led.turn_off();
     }
 
     // Set the stepper driver towards this direction
@@ -469,10 +469,9 @@ void update_direction()
                 headstock.m_moving_led.turn_off();
                 tailstock.m_moving_led.turn_off();
             }
-
             // Turn on/off the appropriate limit LEDs
-            headstock.m_stop_limit.update_led();
-            tailstock.m_stop_limit.update_led();
+            headstock.update_limit_led();
+            tailstock.update_limit_led();
         }
     }
 }
