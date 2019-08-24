@@ -379,6 +379,10 @@ public:
                 if (m_slow_limit.is_hit())
                     // Engage slow mode
                     stepper.set_slow_mode(true);
+                // If the slow limit isn't hit
+                else
+                    // Disengage slow mode
+                    stepper.set_slow_mode(false);
             }
             return true;
         }
@@ -585,7 +589,7 @@ void loop()
     update_direction();
 
     // If the stepper isn't in slow mode (slow limit isn't hit)
-    if (!stepper.is_slow_mode)
+    if (!stepper.is_slow_mode())
     {
         // If turbo is currently held and motor is running
         if (turbo_switch.is_hit() && stepper.is_running())
