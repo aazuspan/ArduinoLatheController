@@ -377,8 +377,10 @@ public:
 
                 // If the slow limit has been hit but the stop limit hasn't been
                 if (m_slow_limit.is_hit())
-                    // Engage slow mode
-                    stepper.set_slow_mode(true);
+                    // If moving faster than slow speed (ie don't speed up to get to slow speed)
+                    if (servo.read() > constants::SERVO_SLOW_SPEED)
+                        // Engage slow mode
+                        stepper.set_slow_mode(true);
                 // If the slow limit isn't hit
                 else
                     // Disengage slow mode
