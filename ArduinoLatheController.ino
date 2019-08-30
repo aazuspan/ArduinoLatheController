@@ -1,6 +1,7 @@
 /*
     Name:       ArduinoLatheController.ino
     Created:	7/29/2019 11:53:30 AM
+    Last update: 8/29/2019 1:30:00 PM
     Author:     Aaron Zuspan
     
     Description: This firmware runs the control circuit of a lathe leadscrew motor. This firmware is responsible for 
@@ -548,23 +549,9 @@ bool is_error()
     // Schrodinger's Cat-esque quantum switch state (or a short circuit) 
     if (headstock.m_direction_switch.is_hit() && tailstock.m_direction_switch.is_hit())
     {
-#ifdef DEBUG_ON
         debug_print();
-        Serial.println("ERROR: Both direction switches pressed.");
-#endif 
         return true;
     }
-
-
-    // We're moving, but we're not sure which direction
-//    else if (motor_running && !is_moving_to_head() && !is_moving_to_tail())
-//    {
-//#ifdef DEBUG_ON
-//        debug_print();
-//        Serial.println("ERROR: Motor running and not moving either direction.");
-//#endif 
-//        return true;
-//    }
     else
         return false;
 }
